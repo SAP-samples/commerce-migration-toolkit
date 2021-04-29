@@ -1,7 +1,5 @@
 # Commerce Migration Toolkit
 
-[![Build Status](https://gkesapcxceop.jaas-gcp.cloud.sap.corp/buildStatus/icon?job=cloud-move-programs%2Fcommerce-migration-toolkit%2Fmaster)](https://gkesapcxceop.jaas-gcp.cloud.sap.corp/blue/organizations/jenkins/cloud-move-programs%2Fi2i-migration-ccv2-sample-project/activity?branch=master)
-
 The Commerce Migration Toolkit is a `self-service tool` that allows `SAP Customers / Partners` to migrate a `SAP Commerce on-premise installation to SAP Commerce Cloud (ccv2)`.
 
 The implementation of this tool is based on regular SAP Commerce extensions. Adding the extensions to your code base in the cloud subscription will provide you with the functionality to migrate the source database, and, paired with the self-service media process described on [this CXWorks article](https://www.sap.com/cxworks/article/508629017/migrate_to_sap_commerce_cloud_migrate_media_with_azcopy) allows to self-service the migration of an on-premise customer environment to their cloud subscription.
