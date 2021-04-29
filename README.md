@@ -66,11 +66,11 @@ The implementation of this tool is based on regular SAP Commerce extensions. Add
     * Only the database vendors mentioned in the Compatibility section are supported
     * The target database must always be MSSQL (SQL Server)
 
-## Demo Video
+# Demo Video
 
   https://video.sap.com/media/t/1_gxduwrl3
 
-## Get the Code and Upgradability
+# Get the Code and Upgradability
 
 For instructions on how to get this code please refer to the official GitHub documentation:
 
@@ -95,4 +95,15 @@ Use git submodule and point to this repository. For more information refer to:
 https://git-scm.com/docs/git-submodule
 
 SAP Commerce Cloud supports git submodule and allows you to fetch the repository upon build time, so there is no need to copy the extensions to your own repository.
-To upgrade make sure your submodule points to the desired release / commit.
+To upgrade make sure your submodule points to the desired release / commit
+
+
+# How to Obtain Support
+
+This repository is provided "as-is"; no support is available.
+
+Find more information about SAP Commerce Cloud Setup on our [help site](https://help.sap.com/viewer/product/SAP_COMMERCE_CLOUD_PUBLIC_CLOUD/LATEST/en-US).
+
+# License
+Copyright (c) 2021 SAP SE or an SAP affiliate company. All rights reserved. This project is licensed under the Apache Software License, version 2.0 except as noted otherwise in the [LICENSE file](LICENSES/Apache-2.0.txt).
+
