@@ -1,0 +1,262 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+ [y] hybris Platform
+
+ Copyright (c) 2018 SAP SE or an SAP affiliate company. All rights reserved.
+
+ This software is the confidential and proprietary information of SAP
+ ("Confidential Information"). You shall not disclose such Confidential
+ Information and shall use it only in accordance with the terms of the
+ license agreement you entered into with SAP.
+-->
+<beans xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:util="http://www.springframework.org/schema/util"
+       xmlns="http://www.springframework.org/schema/beans"
+       xsi:schemaLocation="
+            http://www.springframework.org/schema/util
+            http://www.springframework.org/schema/util/spring-util.xsd
+            http://www.springframework.org/schema/beans
+            http://www.springframework.org/schema/beans/spring-beans.xsd">
+
+    <bean id="mdcTaskDecorator" class="org.sap.commercemigration.concurrent.MDCTaskDecorator"/>
+
+    <!--    number of read threads is bound by the number of write threads-->
+    <bean id="dataReadTaskExecutor" class="org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor">
+        <property name="taskDecorator" ref="mdcTaskDecorator"/>
+        <property name="threadNamePrefix" value="MigrationRead-"/>
+        <property name="queueCapacity" value="0"/>
+        <property name="keepAliveSeconds" value="60"/>
+        <property name="allowCoreThreadTimeOut" value="true"/>
+    </bean>
+
+    <bean id="dataWriteTaskExecutor" class="org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor">
+        <property name="taskDecorator" ref="mdcTaskDecorator"/>
+        <property name="threadNamePrefix" value="MigrationWrite-"/>
+        <property name="corePoolSize" value="${migration.data.maxparalleltablecopy}"/>
+        <property name="maxPoolSize" value="${migration.data.maxparalleltablecopy}"/>
+        <property name="keepAliveSeconds" value="180"/>
+        <property name="allowCoreThreadTimeOut" value="true"/>
+    </bean>
+
+    <bean id="dataReadWorkerPoolFactory" class="org.sap.commercemigration.concurrent.impl.DefaultDataWorkerPoolFactory">
+        <constructor-arg name="taskDecorator" ref="mdcTaskDecorator"/>
+        <constructor-arg name="threadNamePrefix" value="MigrationReadWorker-"/>
+        <constructor-arg name="maxPoolSize" value="${migration.data.workers.reader.maxtasks}"/>
+        <constructor-arg name="keepAliveSeconds" value="60"/>
+        <constructor-arg name="queueable" value="true"/>
+    </bean>
+
+    <!--    using queueCapacity=0 since queueing up writer workers retains datasets which may heavily bloat memory. -->
+    <bean id="dataWriteWorkerPoolFactory"
+          class="org.sap.commercemigration.concurrent.impl.DefaultDataWorkerPoolFactory">
+        <constructor-arg name="taskDecorator" ref="mdcTaskDecorator"/>
+        <constructor-arg name="threadNamePrefix" value="MigrationWriteWorker-"/>
+        <constructor-arg name="maxPoolSize" value="${migration.data.workers.writer.maxtasks}"/>
+        <constructor-arg name="keepAliveSeconds" value="180"/>
+        <constructor-arg name="queueable" value="false"/>
+    </bean>
+
+    <alias name="defaultMigrationContext" alias="migrationContext"/>
+    <bean name="defaultMigrationContext" class="org.sap.commercemigration.context.impl.DefaultMigrationContext">
+        <constructor-arg name="sourceDataSourceConfiguration" ref="sourceDataSourceConfiguration"/>
+        <constructor-arg name="targetDataSourceConfiguration" ref="targetDataSourceConfiguration"/>
+        <constructor-arg name="dataRepositoryFactory" ref="dataRepositoryFactory"/>
+        <constructor-arg name="configuration" value="#{configurationService.getConfiguration()}"/>
+    </bean>
+
+    <alias name="defaultMigrationContextValidator" alias="migrationContextValidator"/>
+    <bean name="defaultMigrationContextValidator" class="org.sap.commercemigration.context.validation.impl.DefaultMigrationContextValidator">
+        <property name="configurationService" ref="configurationService" />
+    </bean>
+
+    <alias name="defaultDataRepositoryFactory" alias="dataRepositoryFactory"/>
+    <bean name="defaultDataRepositoryFactory"
+          class="org.sap.commercemigration.repository.impl.DataRepositoryFactory">
+        <constructor-arg ref="databaseMigrationDataTypeMapperService"/>
+    </bean>
+
+
+    <alias name="defaultTargetDataSourceConfiguration" alias="targetDataSourceConfiguration"/>
+    <bean name="defaultTargetDataSourceConfiguration"
+          class="org.sap.commercemigration.profile.impl.DefaultDataSourceConfiguration">
+        <constructor-arg name="configuration" value="#{configurationService.getConfiguration()}"/>
+        <constructor-arg name="profile" value="target"/>
+    </bean>
+
+    <alias name="defaultSourceDataSourceConfiguration" alias="sourceDataSourceConfiguration"/>
+    <bean name="defaultSourceDataSourceConfiguration"
+          class="org.sap.commercemigration.profile.impl.DefaultDataSourceConfiguration">
+        <constructor-arg name="configuration" value="#{configurationService.getConfiguration()}"/>
+        <constructor-arg name="profile" value="source"/>
+    </bean>
+
+    <alias name="defaultMigrationDataSourceFactory" alias="defaultMigrationDataSourceFactory"/>
+    <bean name="defaultMigrationDataSourceFactory"
+          class="org.sap.commercemigration.datasource.impl.DefaultMigrationDataSourceFactory"/>
+
+    <alias name="defaultDatabaseMigrationDataTypeMapperService" alias="databaseMigrationDataTypeMapperService"/>
+    <bean id="defaultDatabaseMigrationDataTypeMapperService"
+          class="org.sap.commercemigration.service.impl.DefaultDatabaseMigrationDataTypeMapperService"/>
+
+    <alias name="defaultDatabaseMigrationService" alias="databaseMigrationService"/>
+    <bean id="defaultDatabaseMigrationService"
+          class="org.sap.commercemigration.service.impl.DefaultDatabaseMigrationService">
+        <property name="databaseCopyScheduler" ref="databaseCopyScheduler"/>
+        <property name="copyItemProvider" ref="dataCopyItemProvider"/>
+        <property name="performanceProfiler" ref="performanceProfiler"/>
+        <property name="databaseMigrationReportService" ref="databaseMigrationReportService"/>
+        <property name="schemaDifferenceService" ref="schemaDifferenceService"/>
+        <property name="migrationContextValidator" ref="migrationContextValidator"/>
+    </bean>
+
+    <alias name="customClusterDatabaseCopyScheduler" alias="databaseCopyScheduler"/>
+    <bean id="customClusterDatabaseCopyScheduler"
+          class="org.sap.commercemigration.scheduler.impl.CustomClusterDatabaseCopyScheduler">
+        <property name="eventService" ref="eventService"/>
+        <property name="clusterService" ref="clusterService"/>
+        <property name="databaseCopyTaskRepository" ref="databaseCopyTaskRepository"/>
+    </bean>
+
+    <alias name="pipeDatabaseMigrationCopyService" alias="databaseMigrationCopyService"/>
+    <bean id="pipeDatabaseMigrationCopyService"
+          class="org.sap.commercemigration.service.impl.PipeDatabaseMigrationCopyService">
+        <constructor-arg ref="dataPipeFactory"/>
+        <constructor-arg ref="pipeWriterStrategy"/>
+        <constructor-arg ref="dataWriteTaskExecutor"/>
+        <constructor-arg ref="databaseCopyTaskRepository"/>
+    </bean>
+
+    <alias name="defaultDataPipeFactory" alias="dataPipeFactory"/>
+    <bean id="defaultDataPipeFactory" class="org.sap.commercemigration.concurrent.impl.DefaultDataPipeFactory">
+        <constructor-arg ref="databaseCopyScheduler"/>
+        <constructor-arg ref="databaseCopyTaskRepository"/>
+        <constructor-arg ref="dataReadTaskExecutor"/>
+        <constructor-arg ref="dataReadWorkerPoolFactory"/>
+    </bean>
+
+    <alias name="defaultPipeWriterStrategy" alias="pipeWriterStrategy"/>
+    <bean id="defaultPipeWriterStrategy" class="org.sap.commercemigration.strategy.impl.CopyPipeWriterStrategy">
+        <constructor-arg ref="databaseMigrationDataTypeMapperService"/>
+        <constructor-arg ref="databaseCopyTaskRepository"/>
+        <constructor-arg ref="dataWriteWorkerPoolFactory"/>
+    </bean>
+
+
+    <alias name="defaultSchemaDifferenceService" alias="schemaDifferenceService"/>
+    <bean id="defaultSchemaDifferenceService"
+          class="org.sap.commercemigration.service.impl.DefaultDatabaseSchemaDifferenceService">
+        <property name="dataCopyTableFilter" ref="dataCopyTableFilter"/>
+        <property name="databaseMigrationReportStorageService" ref="databaseMigrationReportStorageService"/>
+        <property name="copyItemProvider" ref="dataCopyItemProvider"/>
+        <property name="configurationService" ref="configurationService"/>
+    </bean>
+
+    <!-- Event Listeners -->
+    <alias name="defaultCopyDatabaseTableEventListener" alias="copyDatabaseTableEventListener"/>
+    <bean id="defaultCopyDatabaseTableEventListener"
+          class="org.sap.commercemigration.events.handlers.CopyDatabaseTableEventListener"
+          parent="abstractEventListener">
+        <property name="databaseMigrationCopyService" ref="databaseMigrationCopyService"/>
+        <property name="clusterService" ref="clusterService"/>
+        <property name="databaseCopyTaskRepository" ref="databaseCopyTaskRepository"/>
+        <property name="migrationContext" ref="migrationContext"/>
+        <property name="performanceProfiler" ref="performanceProfiler"/>
+    </bean>
+
+
+    <alias name="defaultMigrationPostProcessor" alias="migrationPostProcessor"/>
+    <bean id="defaultMigrationPostProcessor"
+            class="org.sap.commercemigration.processors.impl.DefaultMigrationPostProcessor"/>
+
+    <bean id="reportMigrationPostProcessor"
+          class="org.sap.commercemigration.processors.impl.ReportMigrationPostProcessor">
+        <property name="databaseMigrationReportService" ref="databaseMigrationReportService"/>
+        <property name="databaseMigrationReportStorageService" ref="databaseMigrationReportStorageService"/>
+    </bean>
+
+    <bean id="adjustActiveTypeSystemPostProcessor"
+          class="org.sap.commercemigration.processors.impl.AdjustActiveTypeSystemPostProcessor"/>
+
+    <alias name="defaultCopyCompleteEventListener" alias="copyCompleteEventListener"/>
+    <bean id="defaultCopyCompleteEventListener"
+          class="org.sap.commercemigration.events.handlers.CopyCompleteEventListener"
+          parent="abstractEventListener">
+        <property name="migrationContext" ref="migrationContext"/>
+        <property name="databaseCopyTaskRepository" ref="databaseCopyTaskRepository"/>
+        <property name="performanceProfiler" ref="performanceProfiler"/>
+        <property name="postProcessors">
+            <util:list>
+                <ref bean="migrationPostProcessor"/>
+                <ref bean="reportMigrationPostProcessor"/>
+                <ref bean="adjustActiveTypeSystemPostProcessor"/>
+            </util:list>
+        </property>
+    </bean>
+
+    <alias name="defaultDatabaseCopyTaskRepository" alias="databaseCopyTaskRepository"/>
+    <bean id="defaultDatabaseCopyTaskRepository"
+          class="org.sap.commercemigration.service.impl.DefaultDatabaseCopyTaskRepository">
+        <property name="clusterService" ref="clusterService"/>
+    </bean>
+
+    <alias name="defaultDataCopyItemProvider" alias="dataCopyItemProvider"/>
+    <bean id="defaultDataCopyItemProvider" class="org.sap.commercemigration.provider.impl.DefaultDataCopyItemProvider">
+        <property name="dataCopyTableFilter" ref="dataCopyTableFilter"/>
+    </bean>
+
+    <alias name="defaultPerformanceProfiler" alias="performanceProfiler"/>
+    <bean id="defaultPerformanceProfiler"
+          class="org.sap.commercemigration.performance.impl.DefaultPerformanceProfiler">
+    </bean>
+
+    <alias name="defaultDatabaseMigrationReportService" alias="databaseMigrationReportService"/>
+    <bean id="defaultDatabaseMigrationReportService"
+          class="org.sap.commercemigration.service.impl.DefaultDatabaseMigrationReportService">
+        <property name="databaseCopyScheduler" ref="databaseCopyScheduler"/>
+        <property name="databaseCopyTaskRepository" ref="databaseCopyTaskRepository"/>
+        <property name="configurationService" ref="configurationService"/>
+    </bean>
+
+    <alias name="blobDatabaseMigrationReportStorageService" alias="databaseMigrationReportStorageService"/>
+    <bean id="blobDatabaseMigrationReportStorageService"
+          class="org.sap.commercemigration.service.impl.BlobDatabaseMigrationReportStorageService">
+        <property name="migrationContext" ref="migrationContext"/>
+    </bean>
+
+    <alias name="compositeDataCopyTableFilter" alias="dataCopyTableFilter"/>
+    <bean id="compositeDataCopyTableFilter"
+          class="org.sap.commercemigration.filter.impl.CompositeDataCopyTableFilter">
+        <property name="filters">
+            <list>
+                <ref bean="exclusionDataCopyTableFilter"/>
+                <ref bean="inclusionDataCopyTableFilter"/>
+                <ref bean="incrementalDataCopyTableFilter"/>
+            </list>
+        </property>
+    </bean>
+
+    <bean id="exclusionDataCopyTableFilter"
+          class="org.sap.commercemigration.filter.impl.ExclusionDataCopyTableFilter"/>
+
+    <bean id="inclusionDataCopyTableFilter"
+          class="org.sap.commercemigration.filter.impl.InclusionDataCopyTableFilter"/>
+
+    <bean id="incrementalDataCopyTableFilter"
+          class="org.sap.commercemigration.filter.impl.IncrementalDataCopyTableFilter"/>
+
+    <bean id="initProcessTrigger" class="org.sap.commercemigration.setup.InitUpdateProcessTrigger">
+        <constructor-arg ref="migrationContext"/>
+        <constructor-arg ref="databaseMigrationService"/>
+    </bean>
+
+    <!-- used for table prefix workaround -->
+    <alias name="defaultDatabaseMigrationSynonymService" alias="databaseMigrationSynonymService"/>
+    <bean id="defaultDatabaseMigrationSynonymService"
+          class="org.sap.commercemigration.service.impl.DefaultDatabaseMigrationSynonymService"/>
+    <!--
+    <bean id="migrationSystemSetup" class="org.sap.commercemigration.setup.MigrationSystemSetup">
+        <constructor-arg ref="configurationService"/>
+    </bean>
+    -->
+
+</beans>

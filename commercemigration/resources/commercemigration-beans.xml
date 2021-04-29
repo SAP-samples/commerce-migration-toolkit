@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<!--
+ [y] hybris Platform
+
+ Copyright (c) 2018 SAP SE or an SAP affiliate company. All rights reserved.
+
+ This software is the confidential and proprietary information of SAP
+ ("Confidential Information"). You shall not disclose such Confidential
+ Information and shall use it only in accordance with the terms of the
+ license agreement you entered into with SAP.
+-->
+
+<beans xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="beans.xsd">
+
+    <enum class="org.sap.commercemigration.MigrationProgress">
+        <value>RUNNING</value>
+        <value>PROCESSED</value>
+        <value>COMPLETED</value>
+        <value>ABORTED</value>
+        <value>STALLED</value>
+    </enum>
+
+    <bean class="org.sap.commercemigration.service.DatabaseCopyTask">
+        <property name="targetnodeId" type="int"/>
+        <property name="migrationId" type="String"/>
+        <property name="pipelinename" type="String"/>
+        <property name="sourcetablename" type="String"/>
+        <property name="targettablename" type="String"/>
+        <property name="sourcerowcount" type="long"/>
+        <property name="targetrowcount" type="long"/>
+        <property name="columnmap" type="java.util.Map&lt;String,String&gt;"/>
+        <property name="completed" type="boolean"/>
+        <property name="failure" type="boolean"/>
+        <property name="duration" type="String"/>
+        <property name="error" type="String"/>
+        <property name="lastUpdate" type="java.time.LocalDateTime"/>
+        <!-- workaround for hac json serializer; it is not configured to handle java.time.* -->
+        <property name="lastUpdateEpoch" type="Long"/>
+        <property name="avgWriterRowThroughput" type="double"/>
+        <property name="avgReaderRowThroughput" type="double"/>
+    </bean>
+
+    <bean class="org.sap.commercemigration.MigrationStatus">
+        <property name="migrationID" type="String" equals="true"/>
+        <property name="start" type="java.time.LocalDateTime"/>
+        <property name="startEpoch" type="Long"/>
+        <property name="end" type="java.time.LocalDateTime"/>
+        <property name="endEpoch" type="Long"/>
+        <property name="lastUpdate" type="java.time.LocalDateTime"/>
+        <property name="lastUpdateEpoch" type="Long"/>
+        <property name="completed" type="boolean"/>
+        <property name="failed" type="boolean"/>
+        <property name="totalTasks" type="int"/>
+        <property name="completedTasks" type="int"/>
+        <property name="failedTasks" type="int"/>
+        <property name="status" type="org.sap.commercemigration.MigrationProgress"/>
+        <property name="statusUpdates" type="java.util.List&lt;org.sap.commercemigration.service.DatabaseCopyTask&gt;"/>
+    </bean>
+
+    <bean class="org.sap.commercemigration.MigrationReport">
+        <property name="migrationID" type="String" equals="true"/>
+        <property name="configuration" type="java.util.SortedMap&lt;String,String&gt;"/>
+        <property name="migrationStatus" type="org.sap.commercemigration.MigrationStatus"/>
+        <property name="databaseCopyTasks"
+                  type="java.util.Set&lt;org.sap.commercemigration.service.DatabaseCopyTask&gt;"/>
+    </bean>
+
+    <bean class="org.sap.commercemigration.TableCandidate">
+        <property name="commonTableName" type="String">
+            <description>No prefix, no type system suffix</description>
+        </property>
+        <property name="tableName" type="String">
+            <description>No prefix, with type system suffix</description>
+        </property>
+        <property name="fullTableName" type="String">
+            <description>With prefix, with type system suffix</description>
+        </property>
+        <property name="baseTableName" type="String">
+            <description>With prefix, with type system suffix, no additional suffix</description>
+        </property>
+        <property name="additionalSuffix" type="String">
+            <description>I.e, LP tables</description>
+        </property>
+        <property name="typeSystemRelatedTable" type="boolean"/>
+    </bean>
+</beans>

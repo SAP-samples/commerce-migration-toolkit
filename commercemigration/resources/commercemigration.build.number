@@ -1,0 +1,9 @@
+#Ant properties
+#Thu Dec 06 15:21:08 CET 2018
+builddate=20181206 1521
+description=commercemigration
+name=commercemigration
+releasedate=20180313 1012
+vendor=hybris
+version=6.7.0.9
+version.api=6.7.0
