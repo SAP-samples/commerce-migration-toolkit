@@ -70,7 +70,7 @@ The implementation of this tool is based on regular SAP Commerce extensions. Add
 
 # Demo Video
 
-  https://video.sap.com/media/t/1_gxduwrl3
+  https://sapvideoa35699dc5.hana.ondemand.com/?entry_id=1_gxduwrl3
 
 # Get the Code and Upgradability
 
