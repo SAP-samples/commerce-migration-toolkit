@@ -7,6 +7,10 @@ import de.hybris.bootstrap.ddl.tools.persistenceinfo.PersistenceInformation;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.ddlutils.Platform;
 import org.apache.ddlutils.model.Database;
+import org.sap.commercemigration.MarkersQueryDefinition;
+import org.sap.commercemigration.OffsetQueryDefinition;
+import org.sap.commercemigration.SeekQueryDefinition;
+import org.sap.commercemigration.TypeSystemTable;
 import org.sap.commercemigration.constants.CommercemigrationConstants;
 import org.sap.commercemigration.dataset.DataColumn;
 import org.sap.commercemigration.dataset.DataSet;
@@ -16,7 +20,6 @@ import org.sap.commercemigration.datasource.MigrationDataSourceFactory;
 import org.sap.commercemigration.datasource.impl.DefaultMigrationDataSourceFactory;
 import org.sap.commercemigration.profile.DataSourceConfiguration;
 import org.sap.commercemigration.repository.DataRepository;
-import org.sap.commercemigration.repository.model.TypeSystemTable;
 import org.sap.commercemigration.service.DatabaseMigrationDataTypeMapperService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -414,15 +417,15 @@ public abstract class AbstractDataRepository implements DataRepository {
     protected abstract String createAllColumnNamesQuery(String table);
 
     @Override
-    public DataSet getBatchWithoutIdentifier(String table, Set<String> allColumns, long batchSize, long offset) throws Exception {
-        return getBatchWithoutIdentifier(table, allColumns, batchSize, offset, null);
+    public DataSet getBatchWithoutIdentifier(OffsetQueryDefinition queryDefinition) throws Exception {
+        return getBatchWithoutIdentifier(queryDefinition, null);
     }
 
     @Override
-    public DataSet getBatchWithoutIdentifier(String table, Set<String> allColumns, long batchSize, long offset, Instant time) throws Exception {
+    public DataSet getBatchWithoutIdentifier(OffsetQueryDefinition queryDefinition, Instant time) throws Exception {
         //get batches with modifiedts >= configured time for incremental migration
         List<String> conditionsList = new ArrayList<>(1);
-        processDefaultConditions(table, conditionsList);
+        processDefaultConditions(queryDefinition.getTable(), conditionsList);
         if (time != null) {
             conditionsList.add("modifiedts > ?");
         }
@@ -431,8 +434,8 @@ public abstract class AbstractDataRepository implements DataRepository {
             conditions = conditionsList.toArray(new String[conditionsList.size()]);
         }
         try (Connection connection = getConnection();
-             PreparedStatement stmt = connection.prepareStatement(buildOffsetBatchQuery(table, allColumns, batchSize, offset, conditions))) {
-            stmt.setFetchSize(Long.valueOf(batchSize).intValue());
+             PreparedStatement stmt = connection.prepareStatement(buildOffsetBatchQuery(queryDefinition, conditions))) {
+            stmt.setFetchSize(Long.valueOf(queryDefinition.getBatchSize()).intValue());
             if (time != null) {
                 stmt.setTimestamp(1, Timestamp.from(time));
             }
@@ -442,28 +445,31 @@ public abstract class AbstractDataRepository implements DataRepository {
     }
 
     @Override
-    public DataSet getBatchOrderedByColumn(String table, String column, Object lastColumnValue, long batchSize) throws Exception {
-        return getBatchOrderedByColumn(table, column, lastColumnValue, batchSize, null);
+    public DataSet getBatchOrderedByColumn(SeekQueryDefinition queryDefinition) throws Exception {
+        return getBatchOrderedByColumn(queryDefinition, null);
     }
 
     @Override
-    public DataSet getBatchOrderedByColumn(String table, String column, Object lastColumnValue, long batchSize, Instant time) throws Exception {
+    public DataSet getBatchOrderedByColumn(SeekQueryDefinition queryDefinition, Instant time) throws Exception {
         //get batches with modifiedts >= configured time for incremental migration
         List<String> conditionsList = new ArrayList<>(2);
-        processDefaultConditions(table, conditionsList);
+        processDefaultConditions(queryDefinition.getTable(), conditionsList);
         if (time != null) {
             conditionsList.add("modifiedts > ?");
         }
-        if (lastColumnValue != null) {
-            conditionsList.add(String.format("%s >= %s", column, lastColumnValue));
+        if (queryDefinition.getLastColumnValue() != null) {
+            conditionsList.add(String.format("%s >= %s", queryDefinition.getColumn(), queryDefinition.getLastColumnValue()));
+        }
+        if (queryDefinition.getNextColumnValue() != null) {
+            conditionsList.add(String.format("%s < %s", queryDefinition.getColumn(), queryDefinition.getNextColumnValue()));
         }
         String[] conditions = null;
         if (conditionsList.size() > 0) {
             conditions = conditionsList.toArray(new String[conditionsList.size()]);
         }
         try (Connection connection = getConnection();
-             PreparedStatement stmt = connection.prepareStatement(buildValueBatchQuery(table, column, batchSize, conditions))) {
-            stmt.setFetchSize(Long.valueOf(batchSize).intValue());
+             PreparedStatement stmt = connection.prepareStatement(buildValueBatchQuery(queryDefinition, conditions))) {
+            stmt.setFetchSize(Long.valueOf(queryDefinition.getBatchSize()).intValue());
             if (time != null) {
                 stmt.setTimestamp(1, Timestamp.from(time));
             }
@@ -474,15 +480,15 @@ public abstract class AbstractDataRepository implements DataRepository {
 
 
     @Override
-    public DataSet getBatchMarkersOrderedByColumn(String table, String column, long batchSize) throws Exception {
-        return getBatchMarkersOrderedByColumn(table, column, batchSize, null);
+    public DataSet getBatchMarkersOrderedByColumn(MarkersQueryDefinition queryDefinition) throws Exception {
+        return getBatchMarkersOrderedByColumn(queryDefinition, null);
     }
 
     @Override
-    public DataSet getBatchMarkersOrderedByColumn(String table, String column, long batchSize, Instant time) throws Exception {
+    public DataSet getBatchMarkersOrderedByColumn(MarkersQueryDefinition queryDefinition, Instant time) throws Exception {
         //get batches with modifiedts >= configured time for incremental migration
         List<String> conditionsList = new ArrayList<>(2);
-        processDefaultConditions(table, conditionsList);
+        processDefaultConditions(queryDefinition.getTable(), conditionsList);
         if (time != null) {
             conditionsList.add("modifiedts > ?");
         }
@@ -491,8 +497,8 @@ public abstract class AbstractDataRepository implements DataRepository {
             conditions = conditionsList.toArray(new String[conditionsList.size()]);
         }
         try (Connection connection = getConnection();
-             PreparedStatement stmt = connection.prepareStatement(buildBatchMarkersQuery(table, column, batchSize, conditions))) {
-            stmt.setFetchSize(Long.valueOf(batchSize).intValue());
+             PreparedStatement stmt = connection.prepareStatement(buildBatchMarkersQuery(queryDefinition, conditions))) {
+            stmt.setFetchSize(Long.valueOf(queryDefinition.getBatchSize()).intValue());
             if (time != null) {
                 stmt.setTimestamp(1, Timestamp.from(time));
             }
@@ -510,11 +516,11 @@ public abstract class AbstractDataRepository implements DataRepository {
         }
     }
 
-    protected abstract String buildOffsetBatchQuery(String table, Set<String> columns, long batchSize, long offset, String... conditions);
+    protected abstract String buildOffsetBatchQuery(OffsetQueryDefinition queryDefinition, String... conditions);
 
-    protected abstract String buildValueBatchQuery(String table, String column, long batchSize, String... conditions);
+    protected abstract String buildValueBatchQuery(SeekQueryDefinition queryDefinition, String... conditions);
 
-    protected abstract String buildBatchMarkersQuery(String table, String column, long batchSize, String... conditions);
+    protected abstract String buildBatchMarkersQuery(MarkersQueryDefinition queryDefinition, String... conditions);
 
     protected abstract String createUniqueColumnsQuery(String tableName);
 

@@ -4,9 +4,12 @@ package org.sap.commercemigration.repository;
 import de.hybris.bootstrap.ddl.DataBaseProvider;
 import org.apache.ddlutils.Platform;
 import org.apache.ddlutils.model.Database;
+import org.sap.commercemigration.MarkersQueryDefinition;
+import org.sap.commercemigration.OffsetQueryDefinition;
+import org.sap.commercemigration.SeekQueryDefinition;
+import org.sap.commercemigration.TypeSystemTable;
 import org.sap.commercemigration.dataset.DataSet;
 import org.sap.commercemigration.profile.DataSourceConfiguration;
-import org.sap.commercemigration.repository.model.TypeSystemTable;
 import org.springframework.core.io.Resource;
 
 import javax.sql.DataSource;
@@ -31,15 +34,15 @@ public interface DataRepository {
 
     Set<String> getAllColumnNames(String table) throws Exception;
 
-    DataSet getBatchWithoutIdentifier(String table, Set<String> allColumns, long batchSize, long offset) throws Exception;
+    DataSet getBatchWithoutIdentifier(OffsetQueryDefinition queryDefinition) throws Exception;
 
-    DataSet getBatchWithoutIdentifier(String table, Set<String> allColumns, long batchSize, long offset, Instant time) throws Exception;
+    DataSet getBatchWithoutIdentifier(OffsetQueryDefinition queryDefinition, Instant time) throws Exception;
 
-    DataSet getBatchOrderedByColumn(String table, String column, Object start, long batchSize) throws Exception;
+    DataSet getBatchOrderedByColumn(SeekQueryDefinition queryDefinition) throws Exception;
 
-    DataSet getBatchOrderedByColumn(String table, String column, Object start, long batchSize, Instant time) throws Exception;
+    DataSet getBatchOrderedByColumn(SeekQueryDefinition queryDefinition, Instant time) throws Exception;
 
-    DataSet getBatchMarkersOrderedByColumn(String table, String column, long batchSize) throws Exception;
+    DataSet getBatchMarkersOrderedByColumn(MarkersQueryDefinition queryDefinition) throws Exception;
 
     long getRowCount(String table) throws Exception;
 
@@ -75,7 +78,7 @@ public interface DataRepository {
 
     DataSource getDataSource();
 
-    DataSet getBatchMarkersOrderedByColumn(String table, String column, long batchSize, Instant time) throws Exception;
+    DataSet getBatchMarkersOrderedByColumn(MarkersQueryDefinition queryDefinition, Instant time) throws Exception;
 
     DataSet getUniqueColumns(String table) throws Exception;
 

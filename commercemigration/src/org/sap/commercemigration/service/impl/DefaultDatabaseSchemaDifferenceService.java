@@ -254,7 +254,7 @@ public class DefaultDatabaseSchemaDifferenceService implements DatabaseSchemaDif
 
     private Set<TableCandidate> getTables(MigrationContext context, DataRepository repository, Set<TableCandidate> candidates) {
         return candidates.stream()
-                .filter(c -> dataCopyTableFilter.filter(context).test(c.getTableName()))
+                .filter(c -> dataCopyTableFilter.filter(context).test(c.getCommonTableName()))
                 .collect(Collectors.toSet());
     }
 

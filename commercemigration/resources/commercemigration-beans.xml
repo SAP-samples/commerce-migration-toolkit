@@ -83,4 +83,50 @@
         </property>
         <property name="typeSystemRelatedTable" type="boolean"/>
     </bean>
+
+    <bean class="org.sap.commercemigration.TypeSystemTable">
+        <property name="typeCode" type="String">
+            <description></description>
+        </property>
+        <property name="tableName" type="String">
+            <description></description>
+        </property>
+        <property name="name" type="String">
+            <description></description>
+        </property>
+        <property name="typeSystemName" type="String">
+            <description></description>
+        </property>
+        <property name="auditTableName" type="String">
+            <description></description>
+        </property>
+        <property name="propsTableName" type="String">
+            <description></description>
+        </property>
+        <property name="typeSystemSuffix" type="String">
+            <description></description>
+        </property>
+        <property name="typeSystemRelatedTable" type="boolean"/>
+    </bean>
+
+    <bean class="org.sap.commercemigration.SeekQueryDefinition">
+        <property name="table" type="String" />
+        <property name="column" type="String" />
+        <property name="lastColumnValue" type="Object" />
+        <property name="nextColumnValue" type="Object" />
+        <property name="batchSize" type="long" />
+    </bean>
+
+    <bean class="org.sap.commercemigration.OffsetQueryDefinition">
+        <property name="table" type="String" />
+        <property name="allColumns" type="java.util.Set&lt;String&gt;" />
+        <property name="batchSize" type="long" />
+        <property name="offset" type="long" />
+    </bean>
+
+    <bean class="org.sap.commercemigration.MarkersQueryDefinition">
+        <property name="table" type="String" />
+        <property name="column" type="String" />
+        <property name="batchSize" type="long" />
+    </bean>
 </beans>

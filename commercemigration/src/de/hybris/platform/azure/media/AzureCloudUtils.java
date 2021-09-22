@@ -20,10 +20,14 @@ public class AzureCloudUtils {
         return name.toLowerCase().replaceAll("[/. !?]", "").replace('_', '-');
     }
 
+    private static String toValidPrefixName(String name) {
+        return name.toLowerCase().replaceAll("[/. !?_-]", "");
+    }
+
     private static String getTenantPrefix() {
         //return "sys-" + Registry.getCurrentTenantNoFallback().getTenantID().toLowerCase();
         String defaultPrefix = Registry.getCurrentTenantNoFallback().getTenantID();
-        String prefix = Config.getString("db.tableprefix", defaultPrefix);
+        String prefix = toValidPrefixName(Config.getString("db.tableprefix", defaultPrefix));
         return "sys-" + prefix.toLowerCase();
     }
 }

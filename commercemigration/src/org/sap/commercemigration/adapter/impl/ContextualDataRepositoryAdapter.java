@@ -1,5 +1,8 @@
 package org.sap.commercemigration.adapter.impl;
 
+import org.sap.commercemigration.MarkersQueryDefinition;
+import org.sap.commercemigration.OffsetQueryDefinition;
+import org.sap.commercemigration.SeekQueryDefinition;
 import org.sap.commercemigration.adapter.DataRepositoryAdapter;
 import org.sap.commercemigration.constants.CommercemigrationConstants;
 import org.sap.commercemigration.context.MigrationContext;
@@ -7,7 +10,6 @@ import org.sap.commercemigration.dataset.DataSet;
 import org.sap.commercemigration.repository.DataRepository;
 
 import java.time.Instant;
-import java.util.Set;
 
 /**
  * Controls the way the repository is accessed by adapting the most common reading
@@ -40,29 +42,29 @@ public class ContextualDataRepositoryAdapter implements DataRepositoryAdapter {
     }
 
     @Override
-    public DataSet getBatchWithoutIdentifier(MigrationContext context, String table, Set<String> allColumns, long batchSize, long offset) throws Exception {
+    public DataSet getBatchWithoutIdentifier(MigrationContext context, OffsetQueryDefinition queryDefinition) throws Exception {
         if (context.isIncrementalModeEnabled()) {
-            return repository.getBatchWithoutIdentifier(table, allColumns, batchSize, offset, getIncrementalTimestamp(context));
+            return repository.getBatchWithoutIdentifier(queryDefinition, getIncrementalTimestamp(context));
         } else {
-            return repository.getBatchWithoutIdentifier(table, allColumns, batchSize, offset);
+            return repository.getBatchWithoutIdentifier(queryDefinition);
         }
     }
 
     @Override
-    public DataSet getBatchOrderedByColumn(MigrationContext context, String table, String column, Object lastColumnValue, long batchSize) throws Exception {
+    public DataSet getBatchOrderedByColumn(MigrationContext context, SeekQueryDefinition queryDefinition) throws Exception {
         if (context.isIncrementalModeEnabled()) {
-            return repository.getBatchOrderedByColumn(table, column, lastColumnValue, batchSize, getIncrementalTimestamp(context));
+            return repository.getBatchOrderedByColumn(queryDefinition, getIncrementalTimestamp(context));
         } else {
-            return repository.getBatchOrderedByColumn(table, column, lastColumnValue, batchSize);
+            return repository.getBatchOrderedByColumn(queryDefinition);
         }
     }
 
     @Override
-    public DataSet getBatchMarkersOrderedByColumn(MigrationContext context, String table, String column, long batchSize) throws Exception {
+    public DataSet getBatchMarkersOrderedByColumn(MigrationContext context, MarkersQueryDefinition queryDefinition) throws Exception {
         if (context.isIncrementalModeEnabled()) {
-            return repository.getBatchMarkersOrderedByColumn(table, column, batchSize, getIncrementalTimestamp(context));
+            return repository.getBatchMarkersOrderedByColumn(queryDefinition, getIncrementalTimestamp(context));
         } else {
-            return repository.getBatchMarkersOrderedByColumn(table, column, batchSize);
+            return repository.getBatchMarkersOrderedByColumn(queryDefinition);
         }
     }
 

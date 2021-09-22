@@ -2,10 +2,11 @@ package org.sap.commercemigration.repository.impl;
 
 import com.google.common.base.Joiner;
 import de.hybris.bootstrap.ddl.DataBaseProvider;
+import org.sap.commercemigration.MarkersQueryDefinition;
+import org.sap.commercemigration.OffsetQueryDefinition;
+import org.sap.commercemigration.SeekQueryDefinition;
 import org.sap.commercemigration.profile.DataSourceConfiguration;
 import org.sap.commercemigration.service.DatabaseMigrationDataTypeMapperService;
-
-import java.util.Set;
 
 public class MySQLDataRepository extends AbstractDataRepository {
     public MySQLDataRepository(DataSourceConfiguration dataSourceConfiguration, DatabaseMigrationDataTypeMapperService databaseMigrationDataTypeMapperService) {
@@ -13,24 +14,25 @@ public class MySQLDataRepository extends AbstractDataRepository {
     }
 
     @Override
-    protected String buildOffsetBatchQuery(String table, Set<String> columns, long batchSize, long offset, String... conditions) {
-        String orderBy = Joiner.on(',').join(columns);
-        return String.format("select * from %s where %s order by %s limit %s,%s", table, expandConditions(conditions), orderBy, offset, batchSize);
+    protected String buildOffsetBatchQuery(OffsetQueryDefinition queryDefinition, String... conditions) {
+        String orderBy = Joiner.on(',').join(queryDefinition.getAllColumns());
+        return String.format("select * from %s where %s order by %s limit %s,%s", queryDefinition.getTable(), expandConditions(conditions), orderBy, queryDefinition.getOffset(), queryDefinition.getBatchSize());
     }
 
     @Override
-    protected String buildValueBatchQuery(String table, String column, long batchSize, String... conditions) {
-        return String.format("select * from %s where %s order by %s limit %s", table, expandConditions(conditions), column, batchSize);
+    protected String buildValueBatchQuery(SeekQueryDefinition queryDefinition, String... conditions) {
+        return String.format("select * from %s where %s order by %s limit %s", queryDefinition.getTable(), expandConditions(conditions), queryDefinition.getColumn(), queryDefinition.getBatchSize());
     }
 
     @Override
-    protected String buildBatchMarkersQuery(String table, String column, long batchSize, String... conditions) {
+    protected String buildBatchMarkersQuery(MarkersQueryDefinition queryDefinition, String... conditions) {
+        String column = queryDefinition.getColumn();
         return String.format("SELECT %s,rownum\n" +
                 "FROM ( \n" +
                 "    SELECT \n" +
                 "        @row := @row +1 AS rownum, %s \n" +
                 "    FROM (SELECT @row :=-1) r, %s  WHERE %s ORDER BY %s) ranked \n" +
-                "WHERE rownum %% %s = 0 ", column, column, table, expandConditions(conditions), column, batchSize);
+                "WHERE rownum %% %s = 0 ", column, column, queryDefinition.getTable(), expandConditions(conditions), column, queryDefinition.getBatchSize());
     }
 
     @Override

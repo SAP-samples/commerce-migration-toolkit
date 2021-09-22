@@ -4,13 +4,13 @@ import com.google.common.collect.Sets;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang.StringUtils;
 import org.sap.commercemigration.TableCandidate;
+import org.sap.commercemigration.TypeSystemTable;
 import org.sap.commercemigration.constants.CommercemigrationConstants;
 import org.sap.commercemigration.context.CopyContext;
 import org.sap.commercemigration.context.MigrationContext;
 import org.sap.commercemigration.filter.DataCopyTableFilter;
 import org.sap.commercemigration.provider.CopyItemProvider;
 import org.sap.commercemigration.repository.DataRepository;
-import org.sap.commercemigration.repository.model.TypeSystemTable;
 
 import java.util.Arrays;
 import java.util.Comparator;

@@ -2,10 +2,11 @@ package org.sap.commercemigration.repository.impl;
 
 import com.google.common.base.Joiner;
 import de.hybris.bootstrap.ddl.DataBaseProvider;
+import org.sap.commercemigration.MarkersQueryDefinition;
+import org.sap.commercemigration.OffsetQueryDefinition;
+import org.sap.commercemigration.SeekQueryDefinition;
 import org.sap.commercemigration.profile.DataSourceConfiguration;
 import org.sap.commercemigration.service.DatabaseMigrationDataTypeMapperService;
-
-import java.util.Set;
 
 public class HanaDataRepository extends AbstractDataRepository {
 
@@ -14,18 +15,19 @@ public class HanaDataRepository extends AbstractDataRepository {
     }
 
     @Override
-    protected String buildOffsetBatchQuery(String table, Set<String> columns, long batchSize, long offset, String... conditions) {
-        String orderBy = Joiner.on(',').join(columns);
-        return String.format("select * from %s where %s order by %s limit %s offset %s", table, expandConditions(conditions), orderBy, batchSize, offset);
+    protected String buildOffsetBatchQuery(OffsetQueryDefinition queryDefinition, String... conditions) {
+        String orderBy = Joiner.on(',').join(queryDefinition.getAllColumns());
+        return String.format("select * from %s where %s order by %s limit %s offset %s", queryDefinition.getTable(), expandConditions(conditions), orderBy, queryDefinition.getBatchSize(), queryDefinition.getOffset());
     }
 
     @Override
-    protected String buildValueBatchQuery(String table, String column, long batchSize, String... conditions) {
-        return String.format("select * from %s where %s order by %s limit %s", table, expandConditions(conditions), column, batchSize);
+    protected String buildValueBatchQuery(SeekQueryDefinition queryDefinition, String... conditions) {
+        return String.format("select * from %s where %s order by %s limit %s", queryDefinition.getTable(), expandConditions(conditions), queryDefinition.getColumn(), queryDefinition.getBatchSize());
     }
 
     @Override
-    protected String buildBatchMarkersQuery(String table, String column, long batchSize, String... conditions) {
+    protected String buildBatchMarkersQuery(MarkersQueryDefinition queryDefinition, String... conditions) {
+        String column = queryDefinition.getColumn();
         return String.format("SELECT t.%s, t.rownr as \"rownum\" \n" +
                 "FROM\n" +
                 "(\n" +
@@ -33,7 +35,7 @@ public class HanaDataRepository extends AbstractDataRepository {
                 "    FROM %s\n WHERE %s" +
                 ") t\n" +
                 "WHERE mod(t.rownr,%s) = 0\n" +
-                "ORDER BY t.%s", column, column, column, table, expandConditions(conditions), batchSize, column);
+                "ORDER BY t.%s", column, column, column, queryDefinition.getTable(), expandConditions(conditions), queryDefinition.getBatchSize(), column);
     }
 
     @Override

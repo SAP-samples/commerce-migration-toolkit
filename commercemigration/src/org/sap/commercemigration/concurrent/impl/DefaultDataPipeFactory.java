@@ -1,5 +1,9 @@
 package org.sap.commercemigration.concurrent.impl;
 
+import org.apache.commons.lang3.tuple.Pair;
+import org.sap.commercemigration.MarkersQueryDefinition;
+import org.sap.commercemigration.OffsetQueryDefinition;
+import org.sap.commercemigration.SeekQueryDefinition;
 import org.sap.commercemigration.adapter.DataRepositoryAdapter;
 import org.sap.commercemigration.adapter.impl.ContextualDataRepositoryAdapter;
 import org.sap.commercemigration.concurrent.DataPipe;
@@ -22,6 +26,7 @@ import org.springframework.core.task.AsyncTaskExecutor;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -115,13 +120,23 @@ public class DefaultDataPipeFactory implements DataPipeFactory<DataSet> {
                 }
             } else {
                 // do the pagination by value comparison
-                DataSet batchMarkers = dataRepositoryAdapter.getBatchMarkersOrderedByColumn(context.getMigrationContext(), table, batchColumn, pageSize);
+                MarkersQueryDefinition queryDefinition = new MarkersQueryDefinition();
+                queryDefinition.setTable(table);
+                queryDefinition.setColumn(batchColumn);
+                queryDefinition.setBatchSize(pageSize);
+                DataSet batchMarkers = dataRepositoryAdapter.getBatchMarkersOrderedByColumn(context.getMigrationContext(), queryDefinition);
                 List<List<Object>> batchMarkersList = batchMarkers.getAllResults();
                 if (batchMarkersList.isEmpty()) {
                     throw new RuntimeException("Could not retrieve batch values for table " + table);
                 }
-                for (List<Object> batchMarkersRow : batchMarkersList) {
-                    DataReaderTask dataReaderTask = new BatchMarkerDataReaderTask(pipeTaskContext, batchColumn, batchMarkersRow);
+                for (int i = 0; i < batchMarkersList.size(); i++) {
+                    List<Object> lastBatchMarkerRow = batchMarkersList.get(i);
+                    Optional<List<Object>> nextBatchMarkerRow = Optional.empty();
+                    int nextIndex = i + 1;
+                    if (nextIndex < batchMarkersList.size()) {
+                        nextBatchMarkerRow = Optional.of(batchMarkersList.get(nextIndex));
+                    }
+                    DataReaderTask dataReaderTask = new BatchMarkerDataReaderTask(pipeTaskContext, batchColumn, Pair.of(lastBatchMarkerRow, nextBatchMarkerRow));
                     workerExecutor.safelyExecute(dataReaderTask);
                 }
             }
@@ -192,7 +207,12 @@ public class DefaultDataPipeFactory implements DataPipeFactory<DataSet> {
             CopyContext context = getPipeTaskContext().getContext();
             String table = getPipeTaskContext().getTable();
             long pageSize = getPipeTaskContext().getPageSize();
-            DataSet result = adapter.getBatchWithoutIdentifier(context.getMigrationContext(), table, batchColumns, pageSize, offset);
+            OffsetQueryDefinition queryDefinition = new OffsetQueryDefinition();
+            queryDefinition.setTable(table);
+            queryDefinition.setAllColumns(batchColumns);
+            queryDefinition.setBatchSize(pageSize);
+            queryDefinition.setOffset(offset);
+            DataSet result = adapter.getBatchWithoutIdentifier(context.getMigrationContext(), queryDefinition);
             getPipeTaskContext().getRecorder().record(PerformanceUnit.ROWS, result.getAllResults().size());
             getPipeTaskContext().getPipe().put(MaybeFinished.of(result));
         }
@@ -200,32 +220,40 @@ public class DefaultDataPipeFactory implements DataPipeFactory<DataSet> {
 
     private static class BatchMarkerDataReaderTask extends DataReaderTask {
 
-        private String batchColumn;
-        private List<Object> batchMarker;
+        private final String batchColumn;
+        private final Pair<List<Object>, Optional<List<Object>>> batchMarkersPair;
 
-        public BatchMarkerDataReaderTask(PipeTaskContext pipeTaskContext, String batchColumn, List<Object> batchMarker) {
+        public BatchMarkerDataReaderTask(PipeTaskContext pipeTaskContext, String batchColumn, Pair<List<Object>, Optional<List<Object>>> batchMarkersPair) {
             super(pipeTaskContext);
             this.batchColumn = batchColumn;
-            this.batchMarker = batchMarker;
+            this.batchMarkersPair = batchMarkersPair;
         }
 
         @Override
         protected Boolean internalRun() throws Exception {
-            if (batchMarker != null && batchMarker.size() == 2) {
-                Object markerValue = batchMarker.get(0);
-                process(markerValue);
+            List<Object> lastBatchMarker = batchMarkersPair.getLeft();
+            Optional<List<Object>> nextBatchMarker = batchMarkersPair.getRight();
+            if (lastBatchMarker != null && lastBatchMarker.size() == 2) {
+                Object lastBatchValue = lastBatchMarker.get(0);
+                process(lastBatchValue, nextBatchMarker.map(v -> v.get(0)));
                 return Boolean.TRUE;
             } else {
                 throw new IllegalArgumentException("Invalid batch marker passed to task");
             }
         }
 
-        private void process(Object lastValue) throws Exception {
+        private void process(Object lastValue, Optional<Object> nextValue) throws Exception {
             CopyContext ctx = getPipeTaskContext().getContext();
             DataRepositoryAdapter adapter = getPipeTaskContext().getDataRepositoryAdapter();
             String table = getPipeTaskContext().getTable();
             long pageSize = getPipeTaskContext().getPageSize();
-            DataSet page = adapter.getBatchOrderedByColumn(ctx.getMigrationContext(), table, batchColumn, lastValue, pageSize);
+            SeekQueryDefinition queryDefinition = new SeekQueryDefinition();
+            queryDefinition.setTable(table);
+            queryDefinition.setColumn(batchColumn);
+            queryDefinition.setLastColumnValue(lastValue);
+            queryDefinition.setNextColumnValue(nextValue.orElseGet(() -> null));
+            queryDefinition.setBatchSize(pageSize);
+            DataSet page = adapter.getBatchOrderedByColumn(ctx.getMigrationContext(), queryDefinition);
             getPipeTaskContext().getRecorder().record(PerformanceUnit.ROWS, pageSize);
             getPipeTaskContext().getPipe().put(MaybeFinished.of(page));
         }

@@ -6,6 +6,9 @@ import de.hybris.bootstrap.ddl.DatabaseSettings;
 import de.hybris.bootstrap.ddl.HybrisOraclePlatform;
 import de.hybris.bootstrap.ddl.HybrisPlatform;
 import org.apache.ddlutils.Platform;
+import org.sap.commercemigration.MarkersQueryDefinition;
+import org.sap.commercemigration.OffsetQueryDefinition;
+import org.sap.commercemigration.SeekQueryDefinition;
 import org.sap.commercemigration.dataset.DataSet;
 import org.sap.commercemigration.profile.DataSourceConfiguration;
 import org.sap.commercemigration.service.DatabaseMigrationDataTypeMapperService;
@@ -13,7 +16,6 @@ import org.sap.commercemigration.service.DatabaseMigrationDataTypeMapperService;
 import javax.sql.DataSource;
 import java.sql.ResultSet;
 import java.util.Collections;
-import java.util.Set;
 
 public class OracleDataRepository extends AbstractDataRepository {
     public OracleDataRepository(DataSourceConfiguration dataSourceConfiguration, DatabaseMigrationDataTypeMapperService databaseMigrationDataTypeMapperService) {
@@ -32,8 +34,8 @@ public class OracleDataRepository extends AbstractDataRepository {
     }
 
     @Override
-    protected String buildOffsetBatchQuery(String table, Set<String> columns, long batchSize, long offset, String... conditions) {
-        String orderBy = Joiner.on(',').join(columns);
+    protected String buildOffsetBatchQuery(OffsetQueryDefinition queryDefinition, String... conditions) {
+        String orderBy = Joiner.on(',').join(queryDefinition.getAllColumns());
         return String.format(
                 "select * " +
                         " from ( " +
@@ -43,13 +45,13 @@ public class OracleDataRepository extends AbstractDataRepository {
                         "  over (order by %s) rn " +
                         " from %s t where %s) " +
                         "where rn between %s and %s " +
-                        "order by rn", batchSize, orderBy, table, expandConditions(conditions), offset + 1, offset + batchSize);
+                        "order by rn", queryDefinition.getBatchSize(), orderBy, queryDefinition.getTable(), expandConditions(conditions), queryDefinition.getOffset() + 1, queryDefinition.getOffset() + queryDefinition.getBatchSize());
     }
 
     // https://blogs.oracle.com/oraclemagazine/on-top-n-and-pagination-queries
     // "Pagination in Getting Rows N Through M"
     @Override
-    protected String buildValueBatchQuery(String table, String column, long batchSize, String... conditions) {
+    protected String buildValueBatchQuery(SeekQueryDefinition queryDefinition, String... conditions) {
         return String.format(
                 "select * " +
                         " from ( " +
@@ -59,11 +61,12 @@ public class OracleDataRepository extends AbstractDataRepository {
                         "  over (order by t.%s) rn " +
                         " from %s t where %s) " +
                         "where rn <= %s " +
-                        "order by rn", batchSize, column, table, expandConditions(conditions), batchSize);
+                        "order by rn", queryDefinition.getBatchSize(), queryDefinition.getColumn(), queryDefinition.getTable(), expandConditions(conditions), queryDefinition.getBatchSize());
     }
 
     @Override
-    protected String buildBatchMarkersQuery(String table, String column, long batchSize, String... conditions) {
+    protected String buildBatchMarkersQuery(MarkersQueryDefinition queryDefinition, String... conditions) {
+        String column = queryDefinition.getColumn();
         return String.format("SELECT t.%s, t.rownr as \"rownum\" \n" +
                 "FROM\n" +
                 "(\n" +
@@ -71,7 +74,7 @@ public class OracleDataRepository extends AbstractDataRepository {
                 "    FROM %s\n WHERE %s" +
                 ") t\n" +
                 "WHERE mod(t.rownr,%s) = 0\n" +
-                "ORDER BY t.%s", column, column, column, table, expandConditions(conditions), batchSize, column);
+                "ORDER BY t.%s", column, column, column, queryDefinition.getTable(), expandConditions(conditions), queryDefinition.getBatchSize(), column);
     }
 
     @Override
