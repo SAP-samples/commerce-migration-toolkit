@@ -7,5 +7,5 @@ import org.sap.commercemigration.context.CopyContext;
  */
 public interface MigrationPostProcessor {
 
-    void process(CopyContext context);
+	void process(CopyContext context);
 }

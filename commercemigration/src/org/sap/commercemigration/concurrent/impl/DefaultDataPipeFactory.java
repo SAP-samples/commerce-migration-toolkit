@@ -1,11 +1,14 @@
 package org.sap.commercemigration.concurrent.impl;
 
+import com.google.common.collect.Lists;
 import org.apache.commons.lang3.tuple.Pair;
+import org.fest.util.Collections;
 import org.sap.commercemigration.MarkersQueryDefinition;
 import org.sap.commercemigration.OffsetQueryDefinition;
 import org.sap.commercemigration.SeekQueryDefinition;
 import org.sap.commercemigration.adapter.DataRepositoryAdapter;
 import org.sap.commercemigration.adapter.impl.ContextualDataRepositoryAdapter;
+import org.sap.commercemigration.concurrent.DataCopyMethod;
 import org.sap.commercemigration.concurrent.DataPipe;
 import org.sap.commercemigration.concurrent.DataPipeFactory;
 import org.sap.commercemigration.concurrent.DataWorkerExecutor;
@@ -19,12 +22,14 @@ import org.sap.commercemigration.performance.PerformanceCategory;
 import org.sap.commercemigration.performance.PerformanceRecorder;
 import org.sap.commercemigration.performance.PerformanceUnit;
 import org.sap.commercemigration.scheduler.DatabaseCopyScheduler;
+import org.sap.commercemigration.service.DatabaseCopyBatch;
 import org.sap.commercemigration.service.DatabaseCopyTaskRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.task.AsyncTaskExecutor;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -32,276 +37,350 @@ import java.util.stream.Collectors;
 
 public class DefaultDataPipeFactory implements DataPipeFactory<DataSet> {
 
-    private static final Logger LOG = LoggerFactory.getLogger(DefaultDataPipeFactory.class);
+	private static final Logger LOG = LoggerFactory.getLogger(DefaultDataPipeFactory.class);
 
-    private final DatabaseCopyTaskRepository taskRepository;
-    private final DatabaseCopyScheduler scheduler;
-    private final AsyncTaskExecutor executor;
-    private final DataWorkerPoolFactory dataReadWorkerPoolFactory;
+	private final DatabaseCopyTaskRepository taskRepository;
+	private final DatabaseCopyScheduler scheduler;
+	private final AsyncTaskExecutor executor;
+	private final DataWorkerPoolFactory dataReadWorkerPoolFactory;
 
-    public DefaultDataPipeFactory(DatabaseCopyScheduler scheduler, DatabaseCopyTaskRepository taskRepository, AsyncTaskExecutor executor, DataWorkerPoolFactory dataReadWorkerPoolFactory) {
-        this.scheduler = scheduler;
-        this.taskRepository = taskRepository;
-        this.executor = executor;
-        this.dataReadWorkerPoolFactory = dataReadWorkerPoolFactory;
-    }
+	public DefaultDataPipeFactory(DatabaseCopyScheduler scheduler, DatabaseCopyTaskRepository taskRepository,
+			AsyncTaskExecutor executor, DataWorkerPoolFactory dataReadWorkerPoolFactory) {
+		this.scheduler = scheduler;
+		this.taskRepository = taskRepository;
+		this.executor = executor;
+		this.dataReadWorkerPoolFactory = dataReadWorkerPoolFactory;
+	}
 
-    @Override
-    public DataPipe<DataSet> create(CopyContext context, CopyContext.DataCopyItem item) throws Exception {
-        int dataPipeTimeout = context.getMigrationContext().getDataPipeTimeout();
-        int dataPipeCapacity = context.getMigrationContext().getDataPipeCapacity();
-        DataPipe<DataSet> pipe = new DefaultDataPipe<>(scheduler, taskRepository, context, item, dataPipeTimeout, dataPipeCapacity);
-        ThreadPoolTaskExecutor taskExecutor = dataReadWorkerPoolFactory.create(context);
-        DataWorkerExecutor<Boolean> workerExecutor = new DefaultDataWorkerExecutor<>(taskExecutor);
-        try {
-            executor.submit(() -> {
-                try {
-                    scheduleWorkers(context, workerExecutor, pipe, item);
-                    workerExecutor.waitAndRethrowUncaughtExceptions();
-                    pipe.put(MaybeFinished.finished(DataSet.EMPTY));
-                } catch (Exception e) {
-                    LOG.error("Error scheduling worker tasks ", e);
-                    try {
-                        pipe.put(MaybeFinished.poison());
-                    } catch (Exception p) {
-                        LOG.error("Cannot contaminate pipe ", p);
-                    }
-                } finally {
-                    if (taskExecutor != null) {
-                        taskExecutor.shutdown();
-                    }
-                }
-            });
-        } catch (Exception e) {
-            throw new RuntimeException("Error invoking reader tasks ", e);
-        }
-        return pipe;
-    }
+	@Override
+	public DataPipe<DataSet> create(CopyContext context, CopyContext.DataCopyItem item) throws Exception {
+		int dataPipeTimeout = context.getMigrationContext().getDataPipeTimeout();
+		int dataPipeCapacity = context.getMigrationContext().getDataPipeCapacity();
+		DataPipe<DataSet> pipe = new DefaultDataPipe<>(scheduler, taskRepository, context, item, dataPipeTimeout,
+				dataPipeCapacity);
+		ThreadPoolTaskExecutor taskExecutor = dataReadWorkerPoolFactory.create(context);
+		DataWorkerExecutor<Boolean> workerExecutor = new DefaultDataWorkerExecutor<>(taskExecutor);
+		try {
+			executor.submit(() -> {
+				try {
+					scheduleWorkers(context, workerExecutor, pipe, item);
+					workerExecutor.waitAndRethrowUncaughtExceptions();
+					pipe.put(MaybeFinished.finished(DataSet.EMPTY));
+				} catch (Exception e) {
+					LOG.error("Error scheduling worker tasks ", e);
+					try {
+						pipe.put(MaybeFinished.poison());
+					} catch (Exception p) {
+						LOG.error("Cannot contaminate pipe ", p);
+					}
+					if (e instanceof InterruptedException) {
+						Thread.currentThread().interrupt();
+					}
+				} finally {
+					if (taskExecutor != null) {
+						taskExecutor.shutdown();
+					}
+				}
+			});
+		} catch (Exception e) {
+			throw new RuntimeException("Error invoking reader tasks ", e);
+		}
+		return pipe;
+	}
 
-    private void scheduleWorkers(CopyContext context, DataWorkerExecutor<Boolean> workerExecutor, DataPipe<DataSet> pipe, CopyContext.DataCopyItem copyItem) throws Exception {
-        DataRepositoryAdapter dataRepositoryAdapter = new ContextualDataRepositoryAdapter(context.getMigrationContext().getDataSourceRepository());
-        String table = copyItem.getSourceItem();
-        long totalRows = copyItem.getRowCount();
-        long pageSize = context.getMigrationContext().getReaderBatchSize();
-        try {
-            PerformanceRecorder recorder = context.getPerformanceProfiler().createRecorder(PerformanceCategory.DB_READ, table);
-            recorder.start();
+	private void scheduleWorkers(CopyContext context, DataWorkerExecutor<Boolean> workerExecutor,
+			DataPipe<DataSet> pipe, CopyContext.DataCopyItem copyItem) throws Exception {
+		DataRepositoryAdapter dataRepositoryAdapter = new ContextualDataRepositoryAdapter(
+				context.getMigrationContext().getDataSourceRepository());
+		String table = copyItem.getSourceItem();
+		long totalRows = copyItem.getRowCount();
+		long pageSize = context.getMigrationContext().getReaderBatchSize();
+		try {
+			PerformanceRecorder recorder = context.getPerformanceProfiler().createRecorder(PerformanceCategory.DB_READ,
+					table);
+			recorder.start();
 
-            PipeTaskContext pipeTaskContext = new PipeTaskContext(context, pipe, table, dataRepositoryAdapter, pageSize, recorder);
+			PipeTaskContext pipeTaskContext = new PipeTaskContext(context, pipe, table, dataRepositoryAdapter, pageSize,
+					recorder, taskRepository);
 
-            String batchColumn = "";
-            // help.sap.com/viewer/d0224eca81e249cb821f2cdf45a82ace/LATEST/en-US/08a27931a21441b59094c8a6aa2a880e.html
-            if (context.getMigrationContext().getDataSourceRepository().isAuditTable(table) &&
-                    context.getMigrationContext().getDataSourceRepository().getAllColumnNames(table).contains("ID")) {
-                batchColumn = "ID";
-            } else if (context.getMigrationContext().getDataSourceRepository().getAllColumnNames(table).contains("PK")) {
-                batchColumn = "PK";
-            }
-            LOG.debug("Using batchColumn: {}", batchColumn.isEmpty() ? "NONE" : batchColumn);
+			String batchColumn = "";
+			// help.sap.com/viewer/d0224eca81e249cb821f2cdf45a82ace/LATEST/en-US/08a27931a21441b59094c8a6aa2a880e.html
+			if (context.getMigrationContext().getDataSourceRepository().isAuditTable(table) && context
+					.getMigrationContext().getDataSourceRepository().getAllColumnNames(table).contains("ID")) {
+				batchColumn = "ID";
+			} else if (context.getMigrationContext().getDataSourceRepository().getAllColumnNames(table)
+					.contains("PK")) {
+				batchColumn = "PK";
+			}
+			LOG.debug("Using batchColumn: {}", batchColumn.isEmpty() ? "NONE" : batchColumn);
 
-            if (batchColumn.isEmpty()) {
-                // trying offset queries with unique index columns
-                Set<String> batchColumns;
-                DataSet uniqueColumns = context.getMigrationContext().getDataSourceRepository().getUniqueColumns(table);
-                if (uniqueColumns.isNotEmpty()) {
-                    if (uniqueColumns.getColumnCount() == 0) {
-                        throw new IllegalStateException("Corrupt dataset retrieved. Dataset should have information about unique columns");
-                    }
-                    batchColumns = uniqueColumns.getAllResults().stream().map(row -> String.valueOf(row.get(0))).collect(Collectors.toSet());
-                    for (int offset = 0; offset < totalRows; offset += pageSize) {
-                        DataReaderTask dataReaderTask = new BatchOffsetDataReaderTask(pipeTaskContext, offset, batchColumns);
-                        workerExecutor.safelyExecute(dataReaderTask);
-                    }
-                } else {
-                    //If no unique columns available to do batch sorting, fallback to read all
-                    LOG.warn("Reading all rows at once without batching for table {}. Memory consumption might be negatively affected", table);
-                    DataReaderTask dataReaderTask = new DefaultDataReaderTask(pipeTaskContext);
-                    workerExecutor.safelyExecute(dataReaderTask);
-                }
-            } else {
-                // do the pagination by value comparison
-                MarkersQueryDefinition queryDefinition = new MarkersQueryDefinition();
-                queryDefinition.setTable(table);
-                queryDefinition.setColumn(batchColumn);
-                queryDefinition.setBatchSize(pageSize);
-                DataSet batchMarkers = dataRepositoryAdapter.getBatchMarkersOrderedByColumn(context.getMigrationContext(), queryDefinition);
-                List<List<Object>> batchMarkersList = batchMarkers.getAllResults();
-                if (batchMarkersList.isEmpty()) {
-                    throw new RuntimeException("Could not retrieve batch values for table " + table);
-                }
-                for (int i = 0; i < batchMarkersList.size(); i++) {
-                    List<Object> lastBatchMarkerRow = batchMarkersList.get(i);
-                    Optional<List<Object>> nextBatchMarkerRow = Optional.empty();
-                    int nextIndex = i + 1;
-                    if (nextIndex < batchMarkersList.size()) {
-                        nextBatchMarkerRow = Optional.of(batchMarkersList.get(nextIndex));
-                    }
-                    DataReaderTask dataReaderTask = new BatchMarkerDataReaderTask(pipeTaskContext, batchColumn, Pair.of(lastBatchMarkerRow, nextBatchMarkerRow));
-                    workerExecutor.safelyExecute(dataReaderTask);
-                }
-            }
-        } catch (Exception ex) {
-            LOG.error("{{}}: Exception while preparing reader tasks", table, ex);
-            pipe.requestAbort(ex);
-            if (ex instanceof InterruptedException) {
-                Thread.currentThread().interrupt();
-            }
-            throw new RuntimeException("Exception while preparing reader tasks", ex);
-        }
-    }
+			if (batchColumn.isEmpty()) {
+				// trying offset queries with unique index columns
+				Set<String> batchColumns;
+				DataSet uniqueColumns = context.getMigrationContext().getDataSourceRepository().getUniqueColumns(table);
+				if (uniqueColumns.isNotEmpty()) {
+					if (uniqueColumns.getColumnCount() == 0) {
+						throw new IllegalStateException(
+								"Corrupt dataset retrieved. Dataset should have information about unique columns");
+					}
+					batchColumns = uniqueColumns.getAllResults().stream().map(row -> String.valueOf(row.get(0)))
+							.collect(Collectors.toSet());
+					taskRepository.updateTaskCopyMethod(context, copyItem, DataCopyMethod.OFFSET.toString());
+					taskRepository.updateTaskKeyColumns(context, copyItem, batchColumns);
 
-    private static abstract class DataReaderTask extends RetriableTask {
-        private static final Logger LOG = LoggerFactory.getLogger(DataReaderTask.class);
+					List<Long> batches = null;
+					if (context.getMigrationContext().isSchedulerResumeEnabled()) {
+						Set<DatabaseCopyBatch> pendingBatchesForPipeline = taskRepository
+								.findPendingBatchesForPipeline(context, copyItem);
+						batches = pendingBatchesForPipeline.stream()
+								.map(b -> Long.valueOf(b.getLowerBoundary().toString())).collect(Collectors.toList());
+						taskRepository.resetPipelineBatches(context, copyItem);
+					} else {
+						batches = new ArrayList<>();
+						for (long offset = 0; offset < totalRows; offset += pageSize) {
+							batches.add(offset);
+						}
+					}
 
-        private PipeTaskContext pipeTaskContext;
+					for (int batchId = 0; batchId < batches.size(); batchId++) {
+						long offset = batches.get(batchId);
+						DataReaderTask dataReaderTask = new BatchOffsetDataReaderTask(pipeTaskContext, batchId, offset,
+								batchColumns);
+						taskRepository.scheduleBatch(context, copyItem, batchId, offset,
+								Optional.of(offset + pageSize));
+						workerExecutor.safelyExecute(dataReaderTask);
+					}
+				} else {
+					// If no unique columns available to do batch sorting, fallback to read all
+					LOG.warn(
+							"Reading all rows at once without batching for table {}. Memory consumption might be negatively affected",
+							table);
+					taskRepository.updateTaskCopyMethod(context, copyItem, DataCopyMethod.DEFAULT.toString());
+					if (context.getMigrationContext().isSchedulerResumeEnabled()) {
+						taskRepository.resetPipelineBatches(context, copyItem);
+					}
+					taskRepository.scheduleBatch(context, copyItem, 0, 0, Optional.of(totalRows));
+					DataReaderTask dataReaderTask = new DefaultDataReaderTask(pipeTaskContext);
+					workerExecutor.safelyExecute(dataReaderTask);
+				}
+			} else {
+				// do the pagination by value comparison
+				taskRepository.updateTaskCopyMethod(context, copyItem, DataCopyMethod.SEEK.toString());
+				taskRepository.updateTaskKeyColumns(context, copyItem, Lists.newArrayList(batchColumn));
 
-        public DataReaderTask(PipeTaskContext pipeTaskContext) {
-            super(pipeTaskContext.getContext(), pipeTaskContext.getTable());
-            this.pipeTaskContext = pipeTaskContext;
-        }
+				List<List<Object>> batchMarkersList = null;
+				if (context.getMigrationContext().isSchedulerResumeEnabled()) {
+					batchMarkersList = new ArrayList<>();
+					Set<DatabaseCopyBatch> pendingBatchesForPipeline = taskRepository
+							.findPendingBatchesForPipeline(context, copyItem);
+					batchMarkersList.addAll(pendingBatchesForPipeline.stream()
+							.map(b -> Collections.list(b.getLowerBoundary())).collect(Collectors.toList()));
+					taskRepository.resetPipelineBatches(context, copyItem);
+				} else {
+					MarkersQueryDefinition queryDefinition = new MarkersQueryDefinition();
+					queryDefinition.setTable(table);
+					queryDefinition.setColumn(batchColumn);
+					queryDefinition.setBatchSize(pageSize);
+					DataSet batchMarkers = dataRepositoryAdapter
+							.getBatchMarkersOrderedByColumn(context.getMigrationContext(), queryDefinition);
+					batchMarkersList = batchMarkers.getAllResults();
+				}
 
-        public PipeTaskContext getPipeTaskContext() {
-            return pipeTaskContext;
-        }
-    }
+				for (int i = 0; i < batchMarkersList.size(); i++) {
+					List<Object> lastBatchMarkerRow = batchMarkersList.get(i);
+					Optional<List<Object>> nextBatchMarkerRow = Optional.empty();
+					int nextIndex = i + 1;
+					if (nextIndex < batchMarkersList.size()) {
+						nextBatchMarkerRow = Optional.of(batchMarkersList.get(nextIndex));
+					}
+					if (lastBatchMarkerRow != null && lastBatchMarkerRow.size() >= 1) {
+						Object lastBatchValue = lastBatchMarkerRow.get(0);
+						Pair<Object, Optional<Object>> batchMarkersPair = Pair.of(lastBatchValue,
+								nextBatchMarkerRow.map(v -> v.get(0)));
+						DataReaderTask dataReaderTask = new BatchMarkerDataReaderTask(pipeTaskContext, i, copyItem,
+								batchColumn, batchMarkersPair);
+						// After creating the task, we register the batch in the db for later use if
+						// necessary
+						taskRepository.scheduleBatch(context, copyItem, i, batchMarkersPair.getLeft(),
+								batchMarkersPair.getRight());
+						workerExecutor.safelyExecute(dataReaderTask);
+					} else {
+						throw new IllegalArgumentException("Invalid batch marker passed to task");
+					}
+				}
+			}
+		} catch (Exception ex) {
+			LOG.error("{{}}: Exception while preparing reader tasks", table, ex);
+			pipe.requestAbort(ex);
+			if (ex instanceof InterruptedException) {
+				Thread.currentThread().interrupt();
+			}
+			throw new RuntimeException("Exception while preparing reader tasks", ex);
+		}
+	}
 
-    private static class DefaultDataReaderTask extends DataReaderTask {
+	private static abstract class DataReaderTask extends RetriableTask {
+		private static final Logger LOG = LoggerFactory.getLogger(DataReaderTask.class);
 
-        public DefaultDataReaderTask(PipeTaskContext pipeTaskContext) {
-            super(pipeTaskContext);
-        }
+		private PipeTaskContext pipeTaskContext;
 
-        @Override
-        protected Boolean internalRun() throws Exception {
-            process();
-            return Boolean.TRUE;
-        }
+		public DataReaderTask(PipeTaskContext pipeTaskContext) {
+			super(pipeTaskContext.getContext(), pipeTaskContext.getTable());
+			this.pipeTaskContext = pipeTaskContext;
+		}
 
-        private void process() throws Exception {
-            MigrationContext migrationContext = getPipeTaskContext().getContext().getMigrationContext();
-            DataSet all = getPipeTaskContext().getDataRepositoryAdapter().getAll(migrationContext, getPipeTaskContext().getTable());
-            getPipeTaskContext().getRecorder().record(PerformanceUnit.ROWS, all.getAllResults().size());
-            getPipeTaskContext().getPipe().put(MaybeFinished.of(all));
-        }
-    }
+		public PipeTaskContext getPipeTaskContext() {
+			return pipeTaskContext;
+		}
+	}
 
-    private static class BatchOffsetDataReaderTask extends DataReaderTask {
+	private static class DefaultDataReaderTask extends DataReaderTask {
 
-        private long offset = 0;
-        private Set<String> batchColumns;
+		public DefaultDataReaderTask(PipeTaskContext pipeTaskContext) {
+			super(pipeTaskContext);
+		}
 
-        public BatchOffsetDataReaderTask(PipeTaskContext pipeTaskContext, long offset, Set<String> batchColumns) {
-            super(pipeTaskContext);
-            this.offset = offset;
-            this.batchColumns = batchColumns;
-        }
+		@Override
+		protected Boolean internalRun() throws Exception {
+			process();
+			return Boolean.TRUE;
+		}
 
-        @Override
-        protected Boolean internalRun() throws Exception {
-            process();
-            return Boolean.TRUE;
-        }
+		private void process() throws Exception {
+			MigrationContext migrationContext = getPipeTaskContext().getContext().getMigrationContext();
+			DataSet all = getPipeTaskContext().getDataRepositoryAdapter().getAll(migrationContext,
+					getPipeTaskContext().getTable());
+			getPipeTaskContext().getRecorder().record(PerformanceUnit.ROWS, all.getAllResults().size());
+			getPipeTaskContext().getPipe().put(MaybeFinished.of(all));
+		}
+	}
 
-        private void process() throws Exception {
-            DataRepositoryAdapter adapter = getPipeTaskContext().getDataRepositoryAdapter();
-            CopyContext context = getPipeTaskContext().getContext();
-            String table = getPipeTaskContext().getTable();
-            long pageSize = getPipeTaskContext().getPageSize();
-            OffsetQueryDefinition queryDefinition = new OffsetQueryDefinition();
-            queryDefinition.setTable(table);
-            queryDefinition.setAllColumns(batchColumns);
-            queryDefinition.setBatchSize(pageSize);
-            queryDefinition.setOffset(offset);
-            DataSet result = adapter.getBatchWithoutIdentifier(context.getMigrationContext(), queryDefinition);
-            getPipeTaskContext().getRecorder().record(PerformanceUnit.ROWS, result.getAllResults().size());
-            getPipeTaskContext().getPipe().put(MaybeFinished.of(result));
-        }
-    }
+	private static class BatchOffsetDataReaderTask extends DataReaderTask {
 
-    private static class BatchMarkerDataReaderTask extends DataReaderTask {
+		private final long offset;
+		private final Set<String> batchColumns;
+		private final int batchId;
 
-        private final String batchColumn;
-        private final Pair<List<Object>, Optional<List<Object>>> batchMarkersPair;
+		public BatchOffsetDataReaderTask(PipeTaskContext pipeTaskContext, int batchId, long offset,
+				Set<String> batchColumns) {
+			super(pipeTaskContext);
+			this.batchId = batchId;
+			this.offset = offset;
+			this.batchColumns = batchColumns;
+		}
 
-        public BatchMarkerDataReaderTask(PipeTaskContext pipeTaskContext, String batchColumn, Pair<List<Object>, Optional<List<Object>>> batchMarkersPair) {
-            super(pipeTaskContext);
-            this.batchColumn = batchColumn;
-            this.batchMarkersPair = batchMarkersPair;
-        }
+		@Override
+		protected Boolean internalRun() throws Exception {
+			process();
+			return Boolean.TRUE;
+		}
 
-        @Override
-        protected Boolean internalRun() throws Exception {
-            List<Object> lastBatchMarker = batchMarkersPair.getLeft();
-            Optional<List<Object>> nextBatchMarker = batchMarkersPair.getRight();
-            if (lastBatchMarker != null && lastBatchMarker.size() == 2) {
-                Object lastBatchValue = lastBatchMarker.get(0);
-                process(lastBatchValue, nextBatchMarker.map(v -> v.get(0)));
-                return Boolean.TRUE;
-            } else {
-                throw new IllegalArgumentException("Invalid batch marker passed to task");
-            }
-        }
+		private void process() throws Exception {
+			DataRepositoryAdapter adapter = getPipeTaskContext().getDataRepositoryAdapter();
+			CopyContext context = getPipeTaskContext().getContext();
+			String table = getPipeTaskContext().getTable();
+			long pageSize = getPipeTaskContext().getPageSize();
+			OffsetQueryDefinition queryDefinition = new OffsetQueryDefinition();
+			queryDefinition.setBatchId(batchId);
+			queryDefinition.setTable(table);
+			queryDefinition.setAllColumns(batchColumns);
+			queryDefinition.setBatchSize(pageSize);
+			queryDefinition.setOffset(offset);
+			DataSet result = adapter.getBatchWithoutIdentifier(context.getMigrationContext(), queryDefinition);
+			getPipeTaskContext().getRecorder().record(PerformanceUnit.ROWS, result.getAllResults().size());
+			getPipeTaskContext().getPipe().put(MaybeFinished.of(result));
+		}
+	}
 
-        private void process(Object lastValue, Optional<Object> nextValue) throws Exception {
-            CopyContext ctx = getPipeTaskContext().getContext();
-            DataRepositoryAdapter adapter = getPipeTaskContext().getDataRepositoryAdapter();
-            String table = getPipeTaskContext().getTable();
-            long pageSize = getPipeTaskContext().getPageSize();
-            SeekQueryDefinition queryDefinition = new SeekQueryDefinition();
-            queryDefinition.setTable(table);
-            queryDefinition.setColumn(batchColumn);
-            queryDefinition.setLastColumnValue(lastValue);
-            queryDefinition.setNextColumnValue(nextValue.orElseGet(() -> null));
-            queryDefinition.setBatchSize(pageSize);
-            DataSet page = adapter.getBatchOrderedByColumn(ctx.getMigrationContext(), queryDefinition);
-            getPipeTaskContext().getRecorder().record(PerformanceUnit.ROWS, pageSize);
-            getPipeTaskContext().getPipe().put(MaybeFinished.of(page));
-        }
-    }
+	private static class BatchMarkerDataReaderTask extends DataReaderTask {
 
-    private static class PipeTaskContext {
-        private CopyContext context;
-        private DataPipe<DataSet> pipe;
-        private String table;
-        private DataRepositoryAdapter dataRepositoryAdapter;
-        private long pageSize;
-        private PerformanceRecorder recorder;
+		private final String batchColumn;
+		private final Pair<Object, Optional<Object>> batchMarkersPair;
+		private final int batchId;
+		private final CopyContext.DataCopyItem copyItem;
 
-        public PipeTaskContext(CopyContext context, DataPipe<DataSet> pipe, String table, DataRepositoryAdapter dataRepositoryAdapter, long pageSize, PerformanceRecorder recorder) {
-            this.context = context;
-            this.pipe = pipe;
-            this.table = table;
-            this.dataRepositoryAdapter = dataRepositoryAdapter;
-            this.pageSize = pageSize;
-            this.recorder = recorder;
-        }
+		public BatchMarkerDataReaderTask(PipeTaskContext pipeTaskContext, int batchId,
+				CopyContext.DataCopyItem copyItem, String batchColumn,
+				Pair<Object, Optional<Object>> batchMarkersPair) {
+			super(pipeTaskContext);
+			this.batchId = batchId;
+			this.copyItem = copyItem;
+			this.batchColumn = batchColumn;
+			this.batchMarkersPair = batchMarkersPair;
+		}
 
-        public CopyContext getContext() {
-            return context;
-        }
+		@Override
+		protected Boolean internalRun() throws Exception {
+			process(batchMarkersPair.getLeft(), batchMarkersPair.getRight());
+			return Boolean.TRUE;
+		}
 
-        public DataPipe<DataSet> getPipe() {
-            return pipe;
-        }
+		private void process(Object lastValue, Optional<Object> nextValue) throws Exception {
+			CopyContext ctx = getPipeTaskContext().getContext();
+			DataRepositoryAdapter adapter = getPipeTaskContext().getDataRepositoryAdapter();
+			String table = getPipeTaskContext().getTable();
+			long pageSize = getPipeTaskContext().getPageSize();
+			SeekQueryDefinition queryDefinition = new SeekQueryDefinition();
+			queryDefinition.setBatchId(batchId);
+			queryDefinition.setTable(table);
+			queryDefinition.setColumn(batchColumn);
+			queryDefinition.setLastColumnValue(lastValue);
+			queryDefinition.setNextColumnValue(nextValue.orElseGet(() -> null));
+			queryDefinition.setBatchSize(pageSize);
+			DataSet page = adapter.getBatchOrderedByColumn(ctx.getMigrationContext(), queryDefinition);
+			getPipeTaskContext().getRecorder().record(PerformanceUnit.ROWS, pageSize);
+			getPipeTaskContext().getPipe().put(MaybeFinished.of(page));
+		}
+	}
 
-        public String getTable() {
-            return table;
-        }
+	private static class PipeTaskContext {
+		private CopyContext context;
+		private DataPipe<DataSet> pipe;
+		private String table;
+		private DataRepositoryAdapter dataRepositoryAdapter;
+		private long pageSize;
+		private PerformanceRecorder recorder;
+		private DatabaseCopyTaskRepository taskRepository;
 
-        public DataRepositoryAdapter getDataRepositoryAdapter() {
-            return dataRepositoryAdapter;
-        }
+		public PipeTaskContext(CopyContext context, DataPipe<DataSet> pipe, String table,
+				DataRepositoryAdapter dataRepositoryAdapter, long pageSize, PerformanceRecorder recorder,
+				DatabaseCopyTaskRepository taskRepository) {
+			this.context = context;
+			this.pipe = pipe;
+			this.table = table;
+			this.dataRepositoryAdapter = dataRepositoryAdapter;
+			this.pageSize = pageSize;
+			this.recorder = recorder;
+			this.taskRepository = taskRepository;
+		}
 
-        public long getPageSize() {
-            return pageSize;
-        }
+		public CopyContext getContext() {
+			return context;
+		}
 
-        public PerformanceRecorder getRecorder() {
-            return recorder;
-        }
+		public DataPipe<DataSet> getPipe() {
+			return pipe;
+		}
 
-    }
+		public String getTable() {
+			return table;
+		}
+
+		public DataRepositoryAdapter getDataRepositoryAdapter() {
+			return dataRepositoryAdapter;
+		}
+
+		public long getPageSize() {
+			return pageSize;
+		}
+
+		public PerformanceRecorder getRecorder() {
+			return recorder;
+		}
+
+		public DatabaseCopyTaskRepository getTaskRepository() {
+			return taskRepository;
+		}
+	}
 
 }
-
-

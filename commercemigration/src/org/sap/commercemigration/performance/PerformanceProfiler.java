@@ -1,20 +1,20 @@
 package org.sap.commercemigration.performance;
 
 import java.util.Collection;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 public interface PerformanceProfiler {
-    PerformanceRecorder createRecorder(PerformanceCategory category, String name);
+	PerformanceRecorder createRecorder(PerformanceCategory category, String name);
 
-    void muteRecorder(PerformanceCategory category, String name);
+	void muteRecorder(PerformanceCategory category, String name);
 
-    ConcurrentHashMap<String, PerformanceRecorder> getRecorders();
+	ConcurrentMap<String, PerformanceRecorder> getRecorders();
 
-    Collection<PerformanceRecorder> getRecordersByCategory(PerformanceCategory category);
+	Collection<PerformanceRecorder> getRecordersByCategory(PerformanceCategory category);
 
-    double getAverageByCategoryAndUnit(PerformanceCategory category, PerformanceUnit unit);
+	double getAverageByCategoryAndUnit(PerformanceCategory category, PerformanceUnit unit);
 
-    PerformanceRecorder getRecorder(PerformanceCategory category, String name);
+	PerformanceRecorder getRecorder(PerformanceCategory category, String name);
 
-    void reset();
+	void reset();
 }

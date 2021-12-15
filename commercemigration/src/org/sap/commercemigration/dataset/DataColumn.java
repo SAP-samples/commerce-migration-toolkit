@@ -2,12 +2,12 @@ package org.sap.commercemigration.dataset;
 
 public interface DataColumn {
 
-    String getColumnName();
+	String getColumnName();
 
-    int getColumnType();
+	int getColumnType();
 
-    int getPrecision();
+	int getPrecision();
 
-    int getScale();
+	int getScale();
 
 }

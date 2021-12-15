@@ -18,90 +18,94 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 
-public class BlobDatabaseMigrationReportStorageService implements org.sap.commercemigration.service.DatabaseMigrationReportStorageService {
+public class BlobDatabaseMigrationReportStorageService
+		implements
+			org.sap.commercemigration.service.DatabaseMigrationReportStorageService {
 
-    private static final Logger LOG = LoggerFactory.getLogger(BlobDatabaseMigrationReportStorageService.class.getName());
+	private static final Logger LOG = LoggerFactory
+			.getLogger(BlobDatabaseMigrationReportStorageService.class.getName());
 
-    private static final String ROOT_CONTAINER = "migration";
+	private static final String ROOT_CONTAINER = "migration";
 
-    private CloudBlobClient cloudBlobClient;
+	private CloudBlobClient cloudBlobClient;
 
-    private MigrationContext migrationContext;
+	private MigrationContext migrationContext;
 
-    protected void init() throws Exception {
-        CloudStorageAccount account = CloudStorageAccount.parse(migrationContext.getMigrationReportConnectionString());
-        this.cloudBlobClient = account.createCloudBlobClient();
-    }
+	protected void init() throws Exception {
+		CloudStorageAccount account = CloudStorageAccount.parse(migrationContext.getMigrationReportConnectionString());
+		this.cloudBlobClient = account.createCloudBlobClient();
+	}
 
-    @Override
-    public void store(String fileName, InputStream inputStream) throws Exception {
-        String path = fileName;
-        if (inputStream != null) {
-            CloudBlockBlob blob = getContainer(ROOT_CONTAINER, true).getBlockBlobReference(path);
-            byte[] bytes = IOUtils.toByteArray(inputStream);
-            ByteArrayInputStream bis = new ByteArrayInputStream(bytes);
-            blob.upload(bis, bytes.length);
-            bis.close();
-            LOG.info("File {} written to blob storage at {}/{}", path, ROOT_CONTAINER, path);
-        } else {
-            throw new IllegalArgumentException(String.format("Input Stream is null for root '%s' and path '%s'", ROOT_CONTAINER, path));
-        }
-    }
+	@Override
+	public void store(String fileName, InputStream inputStream) throws Exception {
+		String path = fileName;
+		if (inputStream != null) {
+			CloudBlockBlob blob = getContainer(ROOT_CONTAINER, true).getBlockBlobReference(path);
+			byte[] bytes = IOUtils.toByteArray(inputStream);
+			ByteArrayInputStream bis = new ByteArrayInputStream(bytes);
+			blob.upload(bis, bytes.length);
+			bis.close();
+			LOG.info("File {} written to blob storage at {}/{}", path, ROOT_CONTAINER, path);
+		} else {
+			throw new IllegalArgumentException(
+					String.format("Input Stream is null for root '%s' and path '%s'", ROOT_CONTAINER, path));
+		}
+	}
 
-    protected CloudBlobContainer getContainer(String name, boolean createIfNotExists) throws Exception {
-        CloudBlobContainer containerReference = getCloudBlobClient().getContainerReference(name);
-        if (createIfNotExists) {
-            containerReference.createIfNotExists();
-        }
-        return containerReference;
-    }
+	protected CloudBlobContainer getContainer(String name, boolean createIfNotExists) throws Exception {
+		CloudBlobContainer containerReference = getCloudBlobClient().getContainerReference(name);
+		if (createIfNotExists) {
+			containerReference.createIfNotExists();
+		}
+		return containerReference;
+	}
 
-    public List<CloudBlockBlob> listAllReports() throws Exception {
-        getCloudBlobClient();
-        Iterable<ListBlobItem> migrationBlobs = cloudBlobClient.getContainerReference(ROOT_CONTAINER).listBlobs();
-        List<CloudBlockBlob> result = new ArrayList<>();
-        migrationBlobs.forEach(blob -> {
-            result.add((CloudBlockBlob) blob);
-        });
-        return result;
-    }
+	public List<CloudBlockBlob> listAllReports() throws Exception {
+		getCloudBlobClient();
+		Iterable<ListBlobItem> migrationBlobs = cloudBlobClient.getContainerReference(ROOT_CONTAINER).listBlobs();
+		List<CloudBlockBlob> result = new ArrayList<>();
+		migrationBlobs.forEach(blob -> {
+			result.add((CloudBlockBlob) blob);
+		});
+		return result;
+	}
 
-    public byte[] getReport(String reportId) throws Exception {
-        checkReportIdValid(reportId);
-        CloudBlob blob = cloudBlobClient.getContainerReference(ROOT_CONTAINER).getBlobReferenceFromServer(reportId);
-        byte[] output = new byte[blob.getStreamWriteSizeInBytes()];
-        blob.downloadToByteArray(output, 0);
-        return output;
-    }
+	public byte[] getReport(String reportId) throws Exception {
+		checkReportIdValid(reportId);
+		CloudBlob blob = cloudBlobClient.getContainerReference(ROOT_CONTAINER).getBlobReferenceFromServer(reportId);
+		byte[] output = new byte[blob.getStreamWriteSizeInBytes()];
+		blob.downloadToByteArray(output, 0);
+		return output;
+	}
 
-    private void checkReportIdValid(String reportId) {
-        NameValidator.validateFileName(reportId);
-        if (StringUtils.contains(reportId, "/")) {
-            throw new IllegalArgumentException("Invalid report id provided");
-        }
-        if (!StringUtils.endsWith(reportId, ".json") && !StringUtils.endsWith(reportId, ".sql")) {
-            throw new IllegalArgumentException("Invalid file name ending provided");
-        }
-    }
+	private void checkReportIdValid(String reportId) {
+		NameValidator.validateFileName(reportId);
+		if (StringUtils.contains(reportId, "/")) {
+			throw new IllegalArgumentException("Invalid report id provided");
+		}
+		if (!StringUtils.endsWith(reportId, ".json") && !StringUtils.endsWith(reportId, ".sql")) {
+			throw new IllegalArgumentException("Invalid file name ending provided");
+		}
+	}
 
-    protected CloudBlobClient getCloudBlobClient() throws Exception {
-        if (cloudBlobClient == null) {
-            init();
-        }
-        return cloudBlobClient;
-    }
+	protected CloudBlobClient getCloudBlobClient() throws Exception {
+		if (cloudBlobClient == null) {
+			init();
+		}
+		return cloudBlobClient;
+	}
 
-    @Override
-    public boolean validateConnection() {
-        try {
-            getCloudBlobClient().listContainers();
-        } catch (Exception e) {
-            return false;
-        }
-        return true;
-    }
+	@Override
+	public boolean validateConnection() {
+		try {
+			getCloudBlobClient().listContainers();
+		} catch (Exception e) {
+			return false;
+		}
+		return true;
+	}
 
-    public void setMigrationContext(MigrationContext migrationContext) {
-        this.migrationContext = migrationContext;
-    }
+	public void setMigrationContext(MigrationContext migrationContext) {
+		this.migrationContext = migrationContext;
+	}
 }

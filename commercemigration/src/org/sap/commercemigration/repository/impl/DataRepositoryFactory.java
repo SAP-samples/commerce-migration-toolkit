@@ -7,31 +7,31 @@ import org.sap.commercemigration.service.DatabaseMigrationDataTypeMapperService;
 
 public class DataRepositoryFactory {
 
-    private final DatabaseMigrationDataTypeMapperService databaseMigrationDataTypeMapperService;
+	private final DatabaseMigrationDataTypeMapperService databaseMigrationDataTypeMapperService;
 
-    public DataRepositoryFactory(DatabaseMigrationDataTypeMapperService databaseMigrationDataTypeMapperService) {
-        this.databaseMigrationDataTypeMapperService = databaseMigrationDataTypeMapperService;
-    }
+	public DataRepositoryFactory(DatabaseMigrationDataTypeMapperService databaseMigrationDataTypeMapperService) {
+		this.databaseMigrationDataTypeMapperService = databaseMigrationDataTypeMapperService;
+	}
 
-    public DataRepository create(DataSourceConfiguration dataSourceConfiguration)
-            throws Exception {
-        String connectionString = dataSourceConfiguration.getConnectionString();
-        if (Strings.isNullOrEmpty(connectionString)) {
-            throw new RuntimeException("No connection string provided for data source '" + dataSourceConfiguration.getProfile() + "'");
-        } else {
-            String connectionStringLower = connectionString.toLowerCase();
-            if (connectionStringLower.startsWith("jdbc:mysql")) {
-                return new MySQLDataRepository(dataSourceConfiguration, databaseMigrationDataTypeMapperService);
-            } else if (connectionStringLower.startsWith("jdbc:sqlserver")) {
-                return new AzureDataRepository(dataSourceConfiguration, databaseMigrationDataTypeMapperService);
-            } else if (connectionStringLower.startsWith("jdbc:oracle")) {
-                return new OracleDataRepository(dataSourceConfiguration, databaseMigrationDataTypeMapperService);
-            } else if (connectionStringLower.startsWith("jdbc:sap")) {
-                return new HanaDataRepository(dataSourceConfiguration, databaseMigrationDataTypeMapperService);
-            } else if (connectionStringLower.startsWith("jdbc:hsqldb")) {
-                return new HsqlRepository(dataSourceConfiguration, databaseMigrationDataTypeMapperService);
-            }
-        }
-        throw new RuntimeException("Cannot handle connection string for " + connectionString);
-    }
+	public DataRepository create(DataSourceConfiguration dataSourceConfiguration) throws Exception {
+		String connectionString = dataSourceConfiguration.getConnectionString();
+		if (Strings.isNullOrEmpty(connectionString)) {
+			throw new RuntimeException(
+					"No connection string provided for data source '" + dataSourceConfiguration.getProfile() + "'");
+		} else {
+			String connectionStringLower = connectionString.toLowerCase();
+			if (connectionStringLower.startsWith("jdbc:mysql")) {
+				return new MySQLDataRepository(dataSourceConfiguration, databaseMigrationDataTypeMapperService);
+			} else if (connectionStringLower.startsWith("jdbc:sqlserver")) {
+				return new AzureDataRepository(dataSourceConfiguration, databaseMigrationDataTypeMapperService);
+			} else if (connectionStringLower.startsWith("jdbc:oracle")) {
+				return new OracleDataRepository(dataSourceConfiguration, databaseMigrationDataTypeMapperService);
+			} else if (connectionStringLower.startsWith("jdbc:sap")) {
+				return new HanaDataRepository(dataSourceConfiguration, databaseMigrationDataTypeMapperService);
+			} else if (connectionStringLower.startsWith("jdbc:hsqldb")) {
+				return new HsqlRepository(dataSourceConfiguration, databaseMigrationDataTypeMapperService);
+			}
+		}
+		throw new RuntimeException("Cannot handle connection string for " + connectionString);
+	}
 }

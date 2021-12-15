@@ -47,516 +47,551 @@ import java.util.concurrent.ConcurrentHashMap;
 import static org.sap.commercemigration.constants.CommercemigrationConstants.MIGRATION_TABLESPREFIX;
 
 /**
- * Base information an a
+ * Implementation of basic operations for accessing repositories
  */
 public abstract class AbstractDataRepository implements DataRepository {
 
-    private static final Logger LOG = LoggerFactory.getLogger(AbstractDataRepository.class);
+	private static final Logger LOG = LoggerFactory.getLogger(AbstractDataRepository.class);
 
-    private final Map<String, DataSource> dataSourceHolder = new ConcurrentHashMap<>();
+	private final Map<String, DataSource> dataSourceHolder = new ConcurrentHashMap<>();
 
-    private final DataSourceConfiguration dataSourceConfiguration;
-    private final MigrationDataSourceFactory migrationDataSourceFactory;
-    private final DatabaseMigrationDataTypeMapperService databaseMigrationDataTypeMapperService;
-    private Platform platform;
-    private Database database;
+	private final DataSourceConfiguration dataSourceConfiguration;
+	private final MigrationDataSourceFactory migrationDataSourceFactory;
+	private final DatabaseMigrationDataTypeMapperService databaseMigrationDataTypeMapperService;
+	private Platform platform;
+	private Database database;
 
-    public AbstractDataRepository(DataSourceConfiguration dataSourceConfiguration, DatabaseMigrationDataTypeMapperService databaseMigrationDataTypeMapperService) {
-        this(dataSourceConfiguration, databaseMigrationDataTypeMapperService, new DefaultMigrationDataSourceFactory());
-    }
+	public AbstractDataRepository(DataSourceConfiguration dataSourceConfiguration,
+			DatabaseMigrationDataTypeMapperService databaseMigrationDataTypeMapperService) {
+		this(dataSourceConfiguration, databaseMigrationDataTypeMapperService, new DefaultMigrationDataSourceFactory());
+	}
 
-    public AbstractDataRepository(DataSourceConfiguration dataSourceConfiguration, DatabaseMigrationDataTypeMapperService databaseMigrationDataTypeMapperService, MigrationDataSourceFactory migrationDataSourceFactory) {
-        this.dataSourceConfiguration = dataSourceConfiguration;
-        this.migrationDataSourceFactory = migrationDataSourceFactory;
-        this.databaseMigrationDataTypeMapperService = databaseMigrationDataTypeMapperService;
-    }
+	public AbstractDataRepository(DataSourceConfiguration dataSourceConfiguration,
+			DatabaseMigrationDataTypeMapperService databaseMigrationDataTypeMapperService,
+			MigrationDataSourceFactory migrationDataSourceFactory) {
+		this.dataSourceConfiguration = dataSourceConfiguration;
+		this.migrationDataSourceFactory = migrationDataSourceFactory;
+		this.databaseMigrationDataTypeMapperService = databaseMigrationDataTypeMapperService;
+	}
 
-    @Override
-    public DataSourceConfiguration getDataSourceConfiguration() {
-        return dataSourceConfiguration;
-    }
+	@Override
+	public DataSourceConfiguration getDataSourceConfiguration() {
+		return dataSourceConfiguration;
+	}
 
-    @Override
-    public DataSource getDataSource() {
-        return dataSourceHolder.computeIfAbsent("DATASOURCE", s -> migrationDataSourceFactory.create(dataSourceConfiguration));
-    }
+	@Override
+	public DataSource getDataSource() {
+		return dataSourceHolder.computeIfAbsent("DATASOURCE",
+				s -> migrationDataSourceFactory.create(dataSourceConfiguration));
+	}
 
-    public Connection getConnection() throws SQLException {
-        return getDataSource().getConnection();
-    }
+	public Connection getConnection() throws SQLException {
+		return getDataSource().getConnection();
+	}
 
-    @Override
-    public int executeUpdateAndCommit(String updateStatement) throws SQLException {
-        try (Connection conn = getConnection();
-             Statement statement = conn.createStatement()
-        ) {
-            return statement.executeUpdate(updateStatement);
-        }
-    }
+	@Override
+	public int executeUpdateAndCommit(String updateStatement) throws SQLException {
+		try (Connection conn = getConnection(); Statement statement = conn.createStatement()) {
+			return statement.executeUpdate(updateStatement);
+		}
+	}
 
-    @Override
-    public void runSqlScript(Resource resource) {
-        final ResourceDatabasePopulator databasePopulator = new ResourceDatabasePopulator(resource);
-        databasePopulator.setIgnoreFailedDrops(true);
-        databasePopulator.execute(getDataSource());
-    }
+	@Override
+	public void runSqlScript(Resource resource) {
+		final ResourceDatabasePopulator databasePopulator = new ResourceDatabasePopulator(resource);
+		databasePopulator.setIgnoreFailedDrops(true);
+		databasePopulator.execute(getDataSource());
+	}
 
-    @Override
-    public float getDatabaseUtilization() throws SQLException {
-        throw new UnsupportedOperationException("Must be added in the specific repository implementation");
-    }
+	@Override
+	public float getDatabaseUtilization() throws SQLException {
+		throw new UnsupportedOperationException("Must be added in the specific repository implementation");
+	}
 
-    @Override
-    public int truncateTable(String table) throws SQLException {
-        return executeUpdateAndCommit(String.format("truncate table %s", table));
-    }
+	@Override
+	public int truncateTable(String table) throws SQLException {
+		return executeUpdateAndCommit(String.format("truncate table %s", table));
+	}
 
-    @Override
-    public long getRowCount(String table) throws SQLException {
-        List<String> conditionsList = new ArrayList<>(1);
-        processDefaultConditions(table, conditionsList);
-        String[] conditions = null;
-        if (conditionsList.size() > 0) {
-            conditions = conditionsList.toArray(new String[conditionsList.size()]);
-        }
-        try (Connection connection = getConnection();
-             Statement stmt = connection.createStatement();
-             ResultSet resultSet = stmt.executeQuery(String.format("select count(*) from %s where %s", table, expandConditions(conditions)))
-        ) {
-            long value = 0;
-            if (resultSet.next()) {
-                value = resultSet.getLong(1);
-            }
-            return value;
-        }
-    }
+	@Override
+	public long getRowCount(String table) throws SQLException {
+		List<String> conditionsList = new ArrayList<>(1);
+		processDefaultConditions(table, conditionsList);
+		String[] conditions = null;
+		if (!conditionsList.isEmpty()) {
+			conditions = conditionsList.toArray(new String[conditionsList.size()]);
+		}
+		try (Connection connection = getConnection();
+				Statement stmt = connection.createStatement();
+				ResultSet resultSet = stmt.executeQuery(
+						String.format("select count(*) from %s where %s", table, expandConditions(conditions)))) {
+			long value = 0;
+			if (resultSet.next()) {
+				value = resultSet.getLong(1);
+			}
+			return value;
+		}
+	}
 
-    @Override
-    public long getRowCountModifiedAfter(String table, Instant time) throws SQLException {
-        List<String> conditionsList = new ArrayList<>(1);
-        processDefaultConditions(table, conditionsList);
-        String[] conditions = null;
-        if (conditionsList.size() > 0) {
-            conditions = conditionsList.toArray(new String[conditionsList.size()]);
-        }
-        try (Connection connection = getConnection()) {
-            try (PreparedStatement stmt = connection.prepareStatement(String.format("select count(*) from %s where modifiedts > ? AND %s", table, expandConditions(conditions)))) {
-                stmt.setTimestamp(1, Timestamp.from(time));
-                ResultSet resultSet = stmt.executeQuery();
-                long value = 0;
-                if (resultSet.next()) {
-                    value = resultSet.getLong(1);
-                }
-                return value;
-            }
-        }
-    }
+	@Override
+	public long getRowCountModifiedAfter(String table, Instant time) throws SQLException {
+		List<String> conditionsList = new ArrayList<>(1);
+		processDefaultConditions(table, conditionsList);
+		String[] conditions = null;
+		if (!conditionsList.isEmpty()) {
+			conditions = conditionsList.toArray(new String[conditionsList.size()]);
+		}
+		try (Connection connection = getConnection()) {
+			try (PreparedStatement stmt = connection.prepareStatement(String.format(
+					"select count(*) from %s where modifiedts > ? AND %s", table, expandConditions(conditions)))) {
+				stmt.setTimestamp(1, Timestamp.from(time));
+				ResultSet resultSet = stmt.executeQuery();
+				long value = 0;
+				if (resultSet.next()) {
+					value = resultSet.getLong(1);
+				}
+				return value;
+			}
+		}
+	}
 
-    @Override
-    public DataSet getAll(String table) throws Exception {
-        List<String> conditionsList = new ArrayList<>(1);
-        processDefaultConditions(table, conditionsList);
-        String[] conditions = null;
-        if (conditionsList.size() > 0) {
-            conditions = conditionsList.toArray(new String[conditionsList.size()]);
-        }
-        try (Connection connection = getConnection();
-             Statement stmt = connection.createStatement();
-             ResultSet resultSet = stmt.executeQuery(String.format("select * from %s where %s", table, expandConditions(conditions)))
-        ) {
-            return convertToDataSet(resultSet);
-        }
-    }
+	@Override
+	public DataSet getAll(String table) throws Exception {
+		List<String> conditionsList = new ArrayList<>(1);
+		processDefaultConditions(table, conditionsList);
+		String[] conditions = null;
+		if (!conditionsList.isEmpty()) {
+			conditions = conditionsList.toArray(new String[conditionsList.size()]);
+		}
+		try (Connection connection = getConnection();
+				Statement stmt = connection.createStatement();
+				ResultSet resultSet = stmt.executeQuery(
+						String.format("select * from %s where %s", table, expandConditions(conditions)))) {
+			return convertToDataSet(resultSet);
+		}
+	}
 
-    @Override
-    public DataSet getAllModifiedAfter(String table, Instant time) throws Exception {
-        List<String> conditionsList = new ArrayList<>(1);
-        processDefaultConditions(table, conditionsList);
-        String[] conditions = null;
-        if (conditionsList.size() > 0) {
-            conditions = conditionsList.toArray(new String[conditionsList.size()]);
-        }
-        try (Connection connection = getConnection()) {
-            try (PreparedStatement stmt = connection.prepareStatement(String.format("select * from %s where modifiedts > ? and %s", table, expandConditions(conditions)))) {
-                stmt.setTimestamp(1, Timestamp.from(time));
-                ResultSet resultSet = stmt.executeQuery();
-                return convertToDataSet(resultSet);
-            }
-        }
-    }
+	@Override
+	public DataSet getAllModifiedAfter(String table, Instant time) throws Exception {
+		List<String> conditionsList = new ArrayList<>(1);
+		processDefaultConditions(table, conditionsList);
+		String[] conditions = null;
+		if (!conditionsList.isEmpty()) {
+			conditions = conditionsList.toArray(new String[conditionsList.size()]);
+		}
+		try (Connection connection = getConnection()) {
+			try (PreparedStatement stmt = connection.prepareStatement(String
+					.format("select * from %s where modifiedts > ? and %s", table, expandConditions(conditions)))) {
+				stmt.setTimestamp(1, Timestamp.from(time));
+				ResultSet resultSet = stmt.executeQuery();
+				return convertToDataSet(resultSet);
+			}
+		}
+	}
 
-    protected DefaultDataSet convertToDataSet(ResultSet resultSet) throws Exception {
-        return convertToDataSet(resultSet, Collections.emptySet());
-    }
+	protected DefaultDataSet convertToDataSet(ResultSet resultSet) throws Exception {
+		return convertToDataSet(resultSet, Collections.emptySet());
+	}
 
-    protected DefaultDataSet convertToDataSet(ResultSet resultSet, Set<String> ignoreColumns) throws Exception {
-        int realColumnCount = resultSet.getMetaData().getColumnCount();
-        List<DataColumn> columnOrder = new ArrayList<>();
-        int columnCount = 0;
-        for (int i = 1; i <= realColumnCount; i++) {
-            String columnName = resultSet.getMetaData().getColumnName(i);
-            int columnType = resultSet.getMetaData().getColumnType(i);
-            int precision = resultSet.getMetaData().getPrecision(i);
-            int scale = resultSet.getMetaData().getScale(i);
-            if (ignoreColumns.stream().anyMatch(columnName::equalsIgnoreCase)) {
-                continue;
-            }
-            columnCount += 1;
-            columnOrder.add(new DefaultDataColumn(columnName, columnType, precision, scale));
-        }
-        List<List<Object>> results = new ArrayList<>();
-        while (resultSet.next()) {
-            List<Object> row = new ArrayList<>();
-            for (DataColumn dataColumn : columnOrder) {
-                int idx = resultSet.findColumn(dataColumn.getColumnName());
-                Object object = resultSet.getObject(idx);
-                //TODO: improve CLOB/BLOB handling
-                Object mappedValue = databaseMigrationDataTypeMapperService.dataTypeMapper(object, resultSet.getMetaData().getColumnType(idx));
-                row.add(mappedValue);
-            }
-            results.add(row);
-        }
-        return new DefaultDataSet(columnCount, columnOrder, results);
-    }
+	protected DefaultDataSet convertToDataSet(int batchId, ResultSet resultSet) throws Exception {
+		return convertToDataSet(batchId, resultSet, Collections.emptySet());
+	}
 
-    @Override
-    public void disableIndexesOfTable(String table) throws SQLException {
-        try (Connection connection = getConnection();
-             Statement stmt = connection.createStatement();
-             ResultSet resultSet = stmt.executeQuery(getDisableIndexesScript(table))
-        ) {
-            while (resultSet.next()) {
-                String q = resultSet.getString(1);
-                LOG.debug("Running query: {}", q);
-                executeUpdateAndCommit(q);
-            }
-        }
-    }
+	protected DefaultDataSet convertToDataSet(ResultSet resultSet, Set<String> ignoreColumns) throws Exception {
+		return convertToDataSet(0, resultSet, ignoreColumns);
+	}
 
-    @Override
-    public void enableIndexesOfTable(String table) throws SQLException {
-        try (Connection connection = getConnection();
-             Statement stmt = connection.createStatement();
-             ResultSet resultSet = stmt.executeQuery(getEnableIndexesScript(table))
-        ) {
-            while (resultSet.next()) {
-                String q = resultSet.getString(1);
-                LOG.debug("Running query: {}", q);
-                executeUpdateAndCommit(q);
-            }
-        }
-    }
+	protected DefaultDataSet convertToDataSet(int batchId, ResultSet resultSet, Set<String> ignoreColumns)
+			throws Exception {
+		int realColumnCount = resultSet.getMetaData().getColumnCount();
+		List<DataColumn> columnOrder = new ArrayList<>();
+		int columnCount = 0;
+		for (int i = 1; i <= realColumnCount; i++) {
+			String columnName = resultSet.getMetaData().getColumnName(i);
+			int columnType = resultSet.getMetaData().getColumnType(i);
+			int precision = resultSet.getMetaData().getPrecision(i);
+			int scale = resultSet.getMetaData().getScale(i);
+			if (ignoreColumns.stream().anyMatch(columnName::equalsIgnoreCase)) {
+				continue;
+			}
+			columnCount += 1;
+			columnOrder.add(new DefaultDataColumn(columnName, columnType, precision, scale));
+		}
+		List<List<Object>> results = new ArrayList<>();
+		while (resultSet.next()) {
+			List<Object> row = new ArrayList<>();
+			for (DataColumn dataColumn : columnOrder) {
+				int idx = resultSet.findColumn(dataColumn.getColumnName());
+				Object object = resultSet.getObject(idx);
+				// TODO: improve CLOB/BLOB handling
+				Object mappedValue = databaseMigrationDataTypeMapperService.dataTypeMapper(object,
+						resultSet.getMetaData().getColumnType(idx));
+				row.add(mappedValue);
+			}
+			results.add(row);
+		}
+		return new DefaultDataSet(batchId, columnCount, columnOrder, results);
+	}
 
-    @Override
-    public void dropIndexesOfTable(String table) throws SQLException {
-        try (Connection connection = getConnection();
-             Statement stmt = connection.createStatement();
-             ResultSet resultSet = stmt.executeQuery(getDropIndexesScript(table))
-        ) {
-            while (resultSet.next()) {
-                String q = resultSet.getString(1);
-                LOG.debug("Running query: {}", q);
-                executeUpdateAndCommit(q);
-            }
-        }
-    }
+	@Override
+	public void disableIndexesOfTable(String table) throws SQLException {
+		try (Connection connection = getConnection();
+				Statement stmt = connection.createStatement();
+				ResultSet resultSet = stmt.executeQuery(getDisableIndexesScript(table))) {
+			while (resultSet.next()) {
+				String q = resultSet.getString(1);
+				LOG.debug("Running query: {}", q);
+				executeUpdateAndCommit(q);
+			}
+		}
+	}
 
-    protected String getDisableIndexesScript(String table) {
-        throw new UnsupportedOperationException("not implemented");
+	@Override
+	public void enableIndexesOfTable(String table) throws SQLException {
+		try (Connection connection = getConnection();
+				Statement stmt = connection.createStatement();
+				ResultSet resultSet = stmt.executeQuery(getEnableIndexesScript(table))) {
+			while (resultSet.next()) {
+				String q = resultSet.getString(1);
+				LOG.debug("Running query: {}", q);
+				executeUpdateAndCommit(q);
+			}
+		}
+	}
 
+	@Override
+	public void dropIndexesOfTable(String table) throws SQLException {
+		try (Connection connection = getConnection();
+				Statement stmt = connection.createStatement();
+				ResultSet resultSet = stmt.executeQuery(getDropIndexesScript(table))) {
+			while (resultSet.next()) {
+				String q = resultSet.getString(1);
+				LOG.debug("Running query: {}", q);
+				executeUpdateAndCommit(q);
+			}
+		}
+	}
 
-    }
+	protected String getDisableIndexesScript(String table) {
+		throw new UnsupportedOperationException("not implemented");
 
-    protected String getEnableIndexesScript(String table) {
-        throw new UnsupportedOperationException("not implemented");
-    }
+	}
 
-    protected String getDropIndexesScript(String table) {
-        throw new UnsupportedOperationException("not implemented");
-    }
+	protected String getEnableIndexesScript(String table) {
+		throw new UnsupportedOperationException("not implemented");
+	}
 
-    @Override
-    public Platform asPlatform() {
-        return asPlatform(false);
-    }
+	protected String getDropIndexesScript(String table) {
+		throw new UnsupportedOperationException("not implemented");
+	}
 
-    @Override
-    public Platform asPlatform(boolean reload) {
-        //TODO all properties to be set and check
-        if (this.platform == null || reload) {
-            final DatabaseSettings databaseSettings = new DatabaseSettings(getDatabaseProvider(), getDataSourceConfiguration().getConnectionString(), getDataSourceConfiguration().getDriver(), getDataSourceConfiguration().getUserName(), getDataSourceConfiguration().getPassword(), getDataSourceConfiguration().getTablePrefix(), ";");
-            this.platform = createPlatform(databaseSettings, getDataSource());
-            addCustomPlatformTypeMapping(this.platform);
-        }
-        return this.platform;
-    }
+	@Override
+	public Platform asPlatform() {
+		return asPlatform(false);
+	}
 
-    protected Platform createPlatform(DatabaseSettings databaseSettings, DataSource dataSource) {
-        return HybrisPlatformFactory.createInstance(databaseSettings, dataSource);
-    }
+	@Override
+	public Platform asPlatform(boolean reload) {
+		// TODO all properties to be set and check
+		if (this.platform == null || reload) {
+			final DatabaseSettings databaseSettings = new DatabaseSettings(getDatabaseProvider(),
+					getDataSourceConfiguration().getConnectionString(), getDataSourceConfiguration().getDriver(),
+					getDataSourceConfiguration().getUserName(), getDataSourceConfiguration().getPassword(),
+					getDataSourceConfiguration().getTablePrefix(), ";");
+			this.platform = createPlatform(databaseSettings, getDataSource());
+			addCustomPlatformTypeMapping(this.platform);
+		}
+		return this.platform;
+	}
 
+	protected Platform createPlatform(DatabaseSettings databaseSettings, DataSource dataSource) {
+		return HybrisPlatformFactory.createInstance(databaseSettings, dataSource);
+	}
 
-    protected void addCustomPlatformTypeMapping(Platform platform) {
-    }
+	protected void addCustomPlatformTypeMapping(Platform platform) {
+	}
 
-    @Override
-    public Database asDatabase() {
-        return asDatabase(false);
-    }
+	@Override
+	public Database asDatabase() {
+		return asDatabase(false);
+	}
 
-    @Override
-    public Database asDatabase(boolean reload) {
-        if (this.database == null || reload) {
-            this.database = getDatabase(reload);
-        }
-        return this.database;
-    }
+	@Override
+	public Database asDatabase(boolean reload) {
+		if (this.database == null || reload) {
+			this.database = getDatabase(reload);
+		}
+		return this.database;
+	}
 
-    protected Database getDatabase(boolean reload) {
-        String schema = getDataSourceConfiguration().getSchema();
-        return asPlatform(reload).readModelFromDatabase(getDataSourceConfiguration().getProfile(), null,
-                schema, null);
-    }
+	protected Database getDatabase(boolean reload) {
+		String schema = getDataSourceConfiguration().getSchema();
+		return asPlatform(reload).readModelFromDatabase(getDataSourceConfiguration().getProfile(), null, schema, null);
+	}
 
-    @Override
-    public Set<String> getAllTableNames() throws SQLException {
-        Set<String> allTableNames = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
-        String allTableNamesQuery = createAllTableNamesQuery();
-        try (Connection connection = getConnection();
-             Statement stmt = connection.createStatement();
-             ResultSet resultSet = stmt.executeQuery(allTableNamesQuery)
-        ) {
-            while (resultSet.next()) {
-                String tableName = resultSet.getString(1);
-                if (!StringUtils.startsWithIgnoreCase(tableName, MIGRATION_TABLESPREFIX)) {
-                    allTableNames.add(resultSet.getString(1));
-                }
-            }
-        }
-        return allTableNames;
-    }
+	@Override
+	public Set<String> getAllTableNames() throws SQLException {
+		Set<String> allTableNames = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
+		String allTableNamesQuery = createAllTableNamesQuery();
+		try (Connection connection = getConnection();
+				Statement stmt = connection.createStatement();
+				ResultSet resultSet = stmt.executeQuery(allTableNamesQuery)) {
+			while (resultSet.next()) {
+				String tableName = resultSet.getString(1);
+				if (!StringUtils.startsWithIgnoreCase(tableName, MIGRATION_TABLESPREFIX)) {
+					allTableNames.add(resultSet.getString(1));
+				}
+			}
+		}
+		return allTableNames;
+	}
 
-    @Override
-    public Set<TypeSystemTable> getAllTypeSystemTables() throws SQLException {
-        if (StringUtils.isEmpty(getDataSourceConfiguration().getTypeSystemName())) {
-            throw new RuntimeException("No type system name specified. Check the properties");
-        }
-        String tablePrefix = getDataSourceConfiguration().getTablePrefix();
-        String yDeploymentsTable = StringUtils.defaultIfBlank(tablePrefix, "") + CommercemigrationConstants.DEPLOYMENTS_TABLE;
-        Set<String> allTableNames = getAllTableNames();
-        if (!allTableNames.contains(yDeploymentsTable)) {
-            return Collections.emptySet();
-        }
-        String allTypeSystemTablesQuery = String.format("SELECT * FROM %s WHERE Typecode IS NOT NULL AND TableName IS NOT NULL AND TypeSystemName = '%s'", yDeploymentsTable, getDataSourceConfiguration().getTypeSystemName());
-        Set<TypeSystemTable> allTypeSystemTables = new HashSet<>();
-        try (Connection connection = getConnection();
-             Statement stmt = connection.createStatement();
-             ResultSet resultSet = stmt.executeQuery(allTypeSystemTablesQuery)
-        ) {
-            while (resultSet.next()) {
-                TypeSystemTable typeSystemTable = new TypeSystemTable();
-                String name = resultSet.getString("Name");
-                String tableName = resultSet.getString("TableName");
-                typeSystemTable.setTypeCode(resultSet.getString("Typecode"));
-                typeSystemTable.setTableName(tableName);
-                typeSystemTable.setName(name);
-                typeSystemTable.setTypeSystemName(resultSet.getString("TypeSystemName"));
-                typeSystemTable.setAuditTableName(resultSet.getString("AuditTableName"));
-                typeSystemTable.setPropsTableName(resultSet.getString("PropsTableName"));
-                typeSystemTable.setTypeSystemSuffix(detectTypeSystemSuffix(tableName, name));
-                typeSystemTable.setTypeSystemRelatedTable(PersistenceInformation.isTypeSystemRelatedDeployment(name));
-                allTypeSystemTables.add(typeSystemTable);
-            }
-        }
-        return allTypeSystemTables;
-    }
+	@Override
+	public Set<TypeSystemTable> getAllTypeSystemTables() throws SQLException {
+		if (StringUtils.isEmpty(getDataSourceConfiguration().getTypeSystemName())) {
+			throw new RuntimeException("No type system name specified. Check the properties");
+		}
+		String tablePrefix = getDataSourceConfiguration().getTablePrefix();
+		String yDeploymentsTable = StringUtils.defaultIfBlank(tablePrefix, "")
+				+ CommercemigrationConstants.DEPLOYMENTS_TABLE;
+		Set<String> allTableNames = getAllTableNames();
+		if (!allTableNames.contains(yDeploymentsTable)) {
+			return Collections.emptySet();
+		}
+		String allTypeSystemTablesQuery = String.format(
+				"SELECT * FROM %s WHERE Typecode IS NOT NULL AND TableName IS NOT NULL AND TypeSystemName = '%s'",
+				yDeploymentsTable, getDataSourceConfiguration().getTypeSystemName());
+		Set<TypeSystemTable> allTypeSystemTables = new HashSet<>();
+		try (Connection connection = getConnection();
+				Statement stmt = connection.createStatement();
+				ResultSet resultSet = stmt.executeQuery(allTypeSystemTablesQuery)) {
+			boolean hasAuditTable = false;
 
-    private String detectTypeSystemSuffix(String tableName, String name) {
-        if (PersistenceInformation.isTypeSystemRelatedDeployment(name)) {
-            return getDataSourceConfiguration().getTypeSystemSuffix();
-        }
-        return StringUtils.EMPTY;
-    }
+			try {
+				hasAuditTable = resultSet.findColumn("AuditTableName") > 0;
+			} catch (SQLException ignored) {
+				LOG.debug("No column with name 'AuditTableName' found in table {}", yDeploymentsTable);
+			}
 
-    @Override
-    public boolean isAuditTable(String table) throws Exception {
-        String tablePrefix = getDataSourceConfiguration().getTablePrefix();
-        String query = String.format("SELECT count(*) from %s%s WHERE AuditTableName = ? OR AuditTableName = ?", StringUtils.defaultIfBlank(tablePrefix, ""), CommercemigrationConstants.DEPLOYMENTS_TABLE);
-        try (Connection connection = getConnection();
-             PreparedStatement stmt = connection.prepareStatement(query);
-        ) {
-            stmt.setObject(1, StringUtils.removeStartIgnoreCase(table, tablePrefix));
-            stmt.setObject(2, table);
-            try (ResultSet rs = stmt.executeQuery()) {
-                boolean isAudit = false;
-                if (rs.next()) {
-                    isAudit = rs.getInt(1) > 0;
-                }
-                return isAudit;
-            }
-        }
-    }
+			while (resultSet.next()) {
+				TypeSystemTable typeSystemTable = new TypeSystemTable();
+				String name = resultSet.getString("Name");
+				String tableName = resultSet.getString("TableName");
+				typeSystemTable.setTypeCode(resultSet.getString("Typecode"));
+				typeSystemTable.setTableName(tableName);
+				typeSystemTable.setName(name);
+				typeSystemTable.setTypeSystemName(resultSet.getString("TypeSystemName"));
+				typeSystemTable.setPropsTableName(resultSet.getString("PropsTableName"));
+				typeSystemTable.setTypeSystemSuffix(detectTypeSystemSuffix(tableName, name));
+				typeSystemTable.setTypeSystemRelatedTable(PersistenceInformation.isTypeSystemRelatedDeployment(name));
 
-    protected abstract String createAllTableNamesQuery();
+				if (hasAuditTable) {
+					typeSystemTable.setAuditTableName(resultSet.getString("AuditTableName"));
+				}
 
-    @Override
-    public Set<String> getAllColumnNames(String table) throws SQLException {
-        String allColumnNamesQuery = createAllColumnNamesQuery(table);
-        Set<String> allColumnNames = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
-        try (Connection connection = getConnection();
-             Statement stmt = connection.createStatement();
-             ResultSet resultSet = stmt.executeQuery(allColumnNamesQuery)
-        ) {
-            while (resultSet.next()) {
-                allColumnNames.add(resultSet.getString(1));
-            }
-        }
-        return allColumnNames;
-    }
+				allTypeSystemTables.add(typeSystemTable);
+			}
+		}
+		return allTypeSystemTables;
+	}
 
-    protected abstract String createAllColumnNamesQuery(String table);
+	private String detectTypeSystemSuffix(String tableName, String name) {
+		if (PersistenceInformation.isTypeSystemRelatedDeployment(name)) {
+			return getDataSourceConfiguration().getTypeSystemSuffix();
+		}
+		return StringUtils.EMPTY;
+	}
 
-    @Override
-    public DataSet getBatchWithoutIdentifier(OffsetQueryDefinition queryDefinition) throws Exception {
-        return getBatchWithoutIdentifier(queryDefinition, null);
-    }
+	@Override
+	public boolean isAuditTable(String table) throws Exception {
+		String tablePrefix = getDataSourceConfiguration().getTablePrefix();
+		String query = String.format("SELECT count(*) from %s%s WHERE AuditTableName = ? OR AuditTableName = ?",
+				StringUtils.defaultIfBlank(tablePrefix, ""), CommercemigrationConstants.DEPLOYMENTS_TABLE);
+		try (Connection connection = getConnection(); PreparedStatement stmt = connection.prepareStatement(query);) {
+			stmt.setObject(1, StringUtils.removeStartIgnoreCase(table, tablePrefix));
+			stmt.setObject(2, table);
+			try (ResultSet rs = stmt.executeQuery()) {
+				boolean isAudit = false;
+				if (rs.next()) {
+					isAudit = rs.getInt(1) > 0;
+				}
+				return isAudit;
+			}
+		} catch (SQLException ignored) {
+			return false;
+		}
+	}
 
-    @Override
-    public DataSet getBatchWithoutIdentifier(OffsetQueryDefinition queryDefinition, Instant time) throws Exception {
-        //get batches with modifiedts >= configured time for incremental migration
-        List<String> conditionsList = new ArrayList<>(1);
-        processDefaultConditions(queryDefinition.getTable(), conditionsList);
-        if (time != null) {
-            conditionsList.add("modifiedts > ?");
-        }
-        String[] conditions = null;
-        if (conditionsList.size() > 0) {
-            conditions = conditionsList.toArray(new String[conditionsList.size()]);
-        }
-        try (Connection connection = getConnection();
-             PreparedStatement stmt = connection.prepareStatement(buildOffsetBatchQuery(queryDefinition, conditions))) {
-            stmt.setFetchSize(Long.valueOf(queryDefinition.getBatchSize()).intValue());
-            if (time != null) {
-                stmt.setTimestamp(1, Timestamp.from(time));
-            }
-            ResultSet resultSet = stmt.executeQuery();
-            return convertToBatchDataSet(resultSet);
-        }
-    }
+	protected abstract String createAllTableNamesQuery();
 
-    @Override
-    public DataSet getBatchOrderedByColumn(SeekQueryDefinition queryDefinition) throws Exception {
-        return getBatchOrderedByColumn(queryDefinition, null);
-    }
+	@Override
+	public Set<String> getAllColumnNames(String table) throws SQLException {
+		String allColumnNamesQuery = createAllColumnNamesQuery(table);
+		Set<String> allColumnNames = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
+		try (Connection connection = getConnection();
+				Statement stmt = connection.createStatement();
+				ResultSet resultSet = stmt.executeQuery(allColumnNamesQuery)) {
+			while (resultSet.next()) {
+				allColumnNames.add(resultSet.getString(1));
+			}
+		}
+		return allColumnNames;
+	}
 
-    @Override
-    public DataSet getBatchOrderedByColumn(SeekQueryDefinition queryDefinition, Instant time) throws Exception {
-        //get batches with modifiedts >= configured time for incremental migration
-        List<String> conditionsList = new ArrayList<>(2);
-        processDefaultConditions(queryDefinition.getTable(), conditionsList);
-        if (time != null) {
-            conditionsList.add("modifiedts > ?");
-        }
-        if (queryDefinition.getLastColumnValue() != null) {
-            conditionsList.add(String.format("%s >= %s", queryDefinition.getColumn(), queryDefinition.getLastColumnValue()));
-        }
-        if (queryDefinition.getNextColumnValue() != null) {
-            conditionsList.add(String.format("%s < %s", queryDefinition.getColumn(), queryDefinition.getNextColumnValue()));
-        }
-        String[] conditions = null;
-        if (conditionsList.size() > 0) {
-            conditions = conditionsList.toArray(new String[conditionsList.size()]);
-        }
-        try (Connection connection = getConnection();
-             PreparedStatement stmt = connection.prepareStatement(buildValueBatchQuery(queryDefinition, conditions))) {
-            stmt.setFetchSize(Long.valueOf(queryDefinition.getBatchSize()).intValue());
-            if (time != null) {
-                stmt.setTimestamp(1, Timestamp.from(time));
-            }
-            ResultSet resultSet = stmt.executeQuery();
-            return convertToBatchDataSet(resultSet);
-        }
-    }
+	protected abstract String createAllColumnNamesQuery(String table);
 
+	@Override
+	public DataSet getBatchWithoutIdentifier(OffsetQueryDefinition queryDefinition) throws Exception {
+		return getBatchWithoutIdentifier(queryDefinition, null);
+	}
 
-    @Override
-    public DataSet getBatchMarkersOrderedByColumn(MarkersQueryDefinition queryDefinition) throws Exception {
-        return getBatchMarkersOrderedByColumn(queryDefinition, null);
-    }
+	@Override
+	public DataSet getBatchWithoutIdentifier(OffsetQueryDefinition queryDefinition, Instant time) throws Exception {
+		// get batches with modifiedts >= configured time for incremental migration
+		List<String> conditionsList = new ArrayList<>(1);
+		processDefaultConditions(queryDefinition.getTable(), conditionsList);
+		if (time != null) {
+			conditionsList.add("modifiedts > ?");
+		}
+		String[] conditions = null;
+		if (!conditionsList.isEmpty()) {
+			conditions = conditionsList.toArray(new String[conditionsList.size()]);
+		}
+		try (Connection connection = getConnection();
+				PreparedStatement stmt = connection
+						.prepareStatement(buildOffsetBatchQuery(queryDefinition, conditions))) {
+			stmt.setFetchSize((int) queryDefinition.getBatchSize());
+			if (time != null) {
+				stmt.setTimestamp(1, Timestamp.from(time));
+			}
+			ResultSet resultSet = stmt.executeQuery();
+			return convertToBatchDataSet(queryDefinition.getBatchId(), resultSet);
+		}
+	}
 
-    @Override
-    public DataSet getBatchMarkersOrderedByColumn(MarkersQueryDefinition queryDefinition, Instant time) throws Exception {
-        //get batches with modifiedts >= configured time for incremental migration
-        List<String> conditionsList = new ArrayList<>(2);
-        processDefaultConditions(queryDefinition.getTable(), conditionsList);
-        if (time != null) {
-            conditionsList.add("modifiedts > ?");
-        }
-        String[] conditions = null;
-        if (conditionsList.size() > 0) {
-            conditions = conditionsList.toArray(new String[conditionsList.size()]);
-        }
-        try (Connection connection = getConnection();
-             PreparedStatement stmt = connection.prepareStatement(buildBatchMarkersQuery(queryDefinition, conditions))) {
-            stmt.setFetchSize(Long.valueOf(queryDefinition.getBatchSize()).intValue());
-            if (time != null) {
-                stmt.setTimestamp(1, Timestamp.from(time));
-            }
-            ResultSet resultSet = stmt.executeQuery();
-            return convertToBatchDataSet(resultSet);
-        }
-    }
+	@Override
+	public DataSet getBatchOrderedByColumn(SeekQueryDefinition queryDefinition) throws Exception {
+		return getBatchOrderedByColumn(queryDefinition, null);
+	}
 
-    @Override
-    public DataSet getUniqueColumns(String table) throws Exception {
-        try (Connection connection = getConnection();
-             Statement stmt = connection.createStatement()) {
-            ResultSet resultSet = stmt.executeQuery(createUniqueColumnsQuery(table));
-            return convertToDataSet(resultSet);
-        }
-    }
+	@Override
+	public DataSet getBatchOrderedByColumn(SeekQueryDefinition queryDefinition, Instant time) throws Exception {
+		// get batches with modifiedts >= configured time for incremental migration
+		List<String> conditionsList = new ArrayList<>(2);
+		processDefaultConditions(queryDefinition.getTable(), conditionsList);
+		if (time != null) {
+			conditionsList.add("modifiedts > ?");
+		}
+		if (queryDefinition.getLastColumnValue() != null) {
+			conditionsList
+					.add(String.format("%s >= %s", queryDefinition.getColumn(), queryDefinition.getLastColumnValue()));
+		}
+		if (queryDefinition.getNextColumnValue() != null) {
+			conditionsList
+					.add(String.format("%s < %s", queryDefinition.getColumn(), queryDefinition.getNextColumnValue()));
+		}
+		String[] conditions = null;
+		if (!conditionsList.isEmpty()) {
+			conditions = conditionsList.toArray(new String[conditionsList.size()]);
+		}
+		try (Connection connection = getConnection();
+				PreparedStatement stmt = connection
+						.prepareStatement(buildValueBatchQuery(queryDefinition, conditions))) {
+			stmt.setFetchSize((int) queryDefinition.getBatchSize());
+			if (time != null) {
+				stmt.setTimestamp(1, Timestamp.from(time));
+			}
+			ResultSet resultSet = stmt.executeQuery();
+			return convertToBatchDataSet(queryDefinition.getBatchId(), resultSet);
+		}
+	}
 
-    protected abstract String buildOffsetBatchQuery(OffsetQueryDefinition queryDefinition, String... conditions);
+	@Override
+	public DataSet getBatchMarkersOrderedByColumn(MarkersQueryDefinition queryDefinition) throws Exception {
+		return getBatchMarkersOrderedByColumn(queryDefinition, null);
+	}
 
-    protected abstract String buildValueBatchQuery(SeekQueryDefinition queryDefinition, String... conditions);
+	@Override
+	public DataSet getBatchMarkersOrderedByColumn(MarkersQueryDefinition queryDefinition, Instant time)
+			throws Exception {
+		// get batches with modifiedts >= configured time for incremental migration
+		List<String> conditionsList = new ArrayList<>(2);
+		processDefaultConditions(queryDefinition.getTable(), conditionsList);
+		if (time != null) {
+			conditionsList.add("modifiedts > ?");
+		}
+		if (queryDefinition.getLowerColumnBoundary() != null) {
+			conditionsList.add(
+					String.format("%s >= %s", queryDefinition.getColumn(), queryDefinition.getLowerColumnBoundary()));
+		}
+		if (queryDefinition.getUpperColumnBoundary() != null) {
+			conditionsList.add(
+					String.format("%s <= %s", queryDefinition.getColumn(), queryDefinition.getUpperColumnBoundary()));
+		}
+		String[] conditions = null;
+		if (!conditionsList.isEmpty()) {
+			conditions = conditionsList.toArray(new String[conditionsList.size()]);
+		}
+		try (Connection connection = getConnection();
+				PreparedStatement stmt = connection
+						.prepareStatement(buildBatchMarkersQuery(queryDefinition, conditions))) {
+			stmt.setFetchSize((int) queryDefinition.getBatchSize());
+			if (time != null) {
+				stmt.setTimestamp(1, Timestamp.from(time));
+			}
+			ResultSet resultSet = stmt.executeQuery();
+			return convertToBatchDataSet(0, resultSet);
+		}
+	}
 
-    protected abstract String buildBatchMarkersQuery(MarkersQueryDefinition queryDefinition, String... conditions);
+	@Override
+	public DataSet getUniqueColumns(String table) throws Exception {
+		try (Connection connection = getConnection(); Statement stmt = connection.createStatement()) {
+			ResultSet resultSet = stmt.executeQuery(createUniqueColumnsQuery(table));
+			return convertToDataSet(resultSet);
+		}
+	}
 
-    protected abstract String createUniqueColumnsQuery(String tableName);
+	protected abstract String buildOffsetBatchQuery(OffsetQueryDefinition queryDefinition, String... conditions);
 
-    private void processDefaultConditions(String table, List<String> conditionsList) {
-        String tsCondition = getTsCondition(table);
-        if (StringUtils.isNotEmpty(tsCondition)) {
-            conditionsList.add(tsCondition);
-        }
-    }
+	protected abstract String buildValueBatchQuery(SeekQueryDefinition queryDefinition, String... conditions);
 
+	protected abstract String buildBatchMarkersQuery(MarkersQueryDefinition queryDefinition, String... conditions);
 
-    private String getTsCondition(String table) {
-        Objects.requireNonNull(table);
-        if (table.toLowerCase().endsWith(CommercemigrationConstants.DEPLOYMENTS_TABLE)) {
-            return String.format("TypeSystemName = '%s'", getDataSourceConfiguration().getTypeSystemName());
-        }
-        return null;
-    }
+	protected abstract String createUniqueColumnsQuery(String tableName);
 
-    protected String expandConditions(String[] conditions) {
-        if (conditions == null || conditions.length == 0) {
-            return "1=1";
-        } else {
-            return Joiner.on(" and ").join(conditions);
-        }
-    }
+	private void processDefaultConditions(String table, List<String> conditionsList) {
+		String tsCondition = getTsCondition(table);
+		if (StringUtils.isNotEmpty(tsCondition)) {
+			conditionsList.add(tsCondition);
+		}
+	}
 
-    protected DataSet convertToBatchDataSet(ResultSet resultSet) throws Exception {
-        return convertToDataSet(resultSet);
-    }
+	private String getTsCondition(String table) {
+		Objects.requireNonNull(table);
+		if (table.toLowerCase().endsWith(CommercemigrationConstants.DEPLOYMENTS_TABLE)) {
+			return String.format("TypeSystemName = '%s'", getDataSourceConfiguration().getTypeSystemName());
+		}
+		return null;
+	}
 
-    @Override
-    public boolean validateConnection() throws Exception {
-        try (Connection connection = getConnection()) {
-            return connection.isValid(120);
-        }
-    }
+	protected String expandConditions(String[] conditions) {
+		if (conditions == null || conditions.length == 0) {
+			return "1=1";
+		} else {
+			return Joiner.on(" and ").join(conditions);
+		}
+	}
+
+	protected DataSet convertToBatchDataSet(int batchId, ResultSet resultSet) throws Exception {
+		return convertToDataSet(batchId, resultSet);
+	}
+
+	@Override
+	public boolean validateConnection() throws Exception {
+		try (Connection connection = getConnection()) {
+			return connection.isValid(120);
+		}
+	}
 
 }

@@ -6,18 +6,18 @@ import javax.sql.DataSource;
 
 public class HikariTargetConnectionMetricPopulator extends HikariConnectionMetricPopulator {
 
-    @Override
-    protected String getMetricId(MigrationContext context) {
-        return "hikari-target-pool";
-    }
+	@Override
+	protected String getMetricId(MigrationContext context) {
+		return "hikari-target-pool";
+	}
 
-    @Override
-    protected String getName(MigrationContext context) {
-        return "Target DB Pool";
-    }
+	@Override
+	protected String getName(MigrationContext context) {
+		return "Target DB Pool";
+	}
 
-    @Override
-    protected DataSource getDataSource(MigrationContext context) {
-        return context.getDataTargetRepository().getDataSource();
-    }
+	@Override
+	protected DataSource getDataSource(MigrationContext context) {
+		return context.getDataTargetRepository().getDataSource();
+	}
 }

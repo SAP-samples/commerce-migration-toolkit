@@ -12,13 +12,13 @@ import javax.annotation.concurrent.ThreadSafe;
  */
 @ThreadSafe
 public interface PipeWriterStrategy<T> {
-    /**
-     * Performs the actual copying of Data Items
-     *
-     * @param context
-     * @param pipe
-     * @param item
-     * @throws Exception
-     */
-    void write(CopyContext context, DataPipe<T> pipe, CopyContext.DataCopyItem item) throws Exception;
+	/**
+	 * Performs the actual copying of Data Items
+	 *
+	 * @param context
+	 * @param pipe
+	 * @param item
+	 * @throws Exception
+	 */
+	void write(CopyContext context, DataPipe<T> pipe, CopyContext.DataCopyItem item) throws Exception;
 }

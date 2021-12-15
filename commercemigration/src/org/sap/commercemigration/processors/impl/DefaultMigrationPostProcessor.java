@@ -10,10 +10,10 @@ import org.slf4j.LoggerFactory;
  */
 public class DefaultMigrationPostProcessor implements MigrationPostProcessor {
 
-    private static final Logger LOG = LoggerFactory.getLogger(DefaultMigrationPostProcessor.class.getName());
+	private static final Logger LOG = LoggerFactory.getLogger(DefaultMigrationPostProcessor.class.getName());
 
-    @Override
-    public void process(CopyContext context) {
-        LOG.info("DefaultMigrationPostProcessor Finished");
-    }
+	@Override
+	public void process(CopyContext context) {
+		LOG.info("DefaultMigrationPostProcessor Finished");
+	}
 }

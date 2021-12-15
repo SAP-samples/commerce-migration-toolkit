@@ -10,13 +10,13 @@ import java.util.function.Predicate;
 
 public class InclusionDataCopyTableFilter implements DataCopyTableFilter {
 
-    @Override
-    public Predicate<String> filter(MigrationContext context) {
-        Set<String> includedTables = context.getIncludedTables();
-        if (includedTables == null || includedTables.isEmpty()) {
-            return Predicates.alwaysTrue();
-        }
-        return p -> includedTables.stream().anyMatch(e -> StringUtils.equalsIgnoreCase(e, p));
+	@Override
+	public Predicate<String> filter(MigrationContext context) {
+		Set<String> includedTables = context.getIncludedTables();
+		if (includedTables == null || includedTables.isEmpty()) {
+			return Predicates.alwaysTrue();
+		}
+		return p -> includedTables.stream().anyMatch(e -> StringUtils.equalsIgnoreCase(e, p));
 
-    }
+	}
 }

@@ -8,14 +8,14 @@ import java.util.function.Predicate;
 
 public class CompositeDataCopyTableFilter implements DataCopyTableFilter {
 
-    private List<DataCopyTableFilter> filters;
+	private List<DataCopyTableFilter> filters;
 
-    @Override
-    public Predicate<String> filter(MigrationContext context) {
-        return p -> filters.stream().allMatch(f -> f.filter(context).test(p));
-    }
+	@Override
+	public Predicate<String> filter(MigrationContext context) {
+		return p -> filters.stream().allMatch(f -> f.filter(context).test(p));
+	}
 
-    public void setFilters(List<DataCopyTableFilter> filters) {
-        this.filters = filters;
-    }
+	public void setFilters(List<DataCopyTableFilter> filters) {
+		this.filters = filters;
+	}
 }

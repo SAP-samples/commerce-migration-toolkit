@@ -4,6 +4,6 @@ import org.sap.commercemigration.context.MigrationContext;
 
 public interface MigrationContextValidator {
 
-    void validateContext(MigrationContext context);
+	void validateContext(MigrationContext context);
 
 }

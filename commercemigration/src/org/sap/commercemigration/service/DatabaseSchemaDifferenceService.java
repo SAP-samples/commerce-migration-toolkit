@@ -8,17 +8,18 @@ import org.sap.commercemigration.service.impl.DefaultDatabaseSchemaDifferenceSer
  */
 public interface DatabaseSchemaDifferenceService {
 
-    String generateSchemaDifferencesSql(MigrationContext context) throws Exception;
+	String generateSchemaDifferencesSql(MigrationContext context) throws Exception;
 
-    void executeSchemaDifferencesSql(MigrationContext context, String sql) throws Exception;
+	void executeSchemaDifferencesSql(MigrationContext context, String sql) throws Exception;
 
-    void executeSchemaDifferences(MigrationContext context) throws Exception;
+	void executeSchemaDifferences(MigrationContext context) throws Exception;
 
-    /**
-     * Calculates the differences between two schemas
-     *
-     * @param migrationContext
-     * @return
-     */
-    DefaultDatabaseSchemaDifferenceService.SchemaDifferenceResult getDifference(MigrationContext migrationContext) throws Exception;
+	/**
+	 * Calculates the differences between two schemas
+	 *
+	 * @param migrationContext
+	 * @return
+	 */
+	DefaultDatabaseSchemaDifferenceService.SchemaDifferenceResult getDifference(MigrationContext migrationContext)
+			throws Exception;
 }

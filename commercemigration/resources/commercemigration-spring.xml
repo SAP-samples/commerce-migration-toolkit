@@ -113,8 +113,15 @@
     <bean id="customClusterDatabaseCopyScheduler"
           class="org.sap.commercemigration.scheduler.impl.CustomClusterDatabaseCopyScheduler">
         <property name="eventService" ref="eventService"/>
-        <property name="clusterService" ref="clusterService"/>
         <property name="databaseCopyTaskRepository" ref="databaseCopyTaskRepository"/>
+        <property name="databaseCopySchedulerAlgorithm" ref="clusterSchedulerAlgorithm"/>
+    </bean>
+
+    <alias name="roundRobinClusterSchedulerAlgorithm" alias="clusterSchedulerAlgorithm"/>
+    <bean id="roundRobinClusterSchedulerAlgorithm"
+          class="org.sap.commercemigration.scheduler.impl.RoundRobinClusterSchedulerAlgorithm">
+        <constructor-arg ref="migrationContext"/>
+        <constructor-arg ref="clusterService"/>
     </bean>
 
     <alias name="pipeDatabaseMigrationCopyService" alias="databaseMigrationCopyService"/>
@@ -158,11 +165,11 @@
           parent="abstractEventListener">
         <property name="databaseMigrationCopyService" ref="databaseMigrationCopyService"/>
         <property name="clusterService" ref="clusterService"/>
+        <property name="configurationService" ref="configurationService" />
         <property name="databaseCopyTaskRepository" ref="databaseCopyTaskRepository"/>
         <property name="migrationContext" ref="migrationContext"/>
         <property name="performanceProfiler" ref="performanceProfiler"/>
     </bean>
-
 
     <alias name="defaultMigrationPostProcessor" alias="migrationPostProcessor"/>
     <bean id="defaultMigrationPostProcessor"
@@ -248,15 +255,5 @@
         <constructor-arg ref="migrationContext"/>
         <constructor-arg ref="databaseMigrationService"/>
     </bean>
-
-    <!-- used for table prefix workaround -->
-    <alias name="defaultDatabaseMigrationSynonymService" alias="databaseMigrationSynonymService"/>
-    <bean id="defaultDatabaseMigrationSynonymService"
-          class="org.sap.commercemigration.service.impl.DefaultDatabaseMigrationSynonymService"/>
-    <!--
-    <bean id="migrationSystemSetup" class="org.sap.commercemigration.setup.MigrationSystemSetup">
-        <constructor-arg ref="configurationService"/>
-    </bean>
-    -->
 
 </beans>

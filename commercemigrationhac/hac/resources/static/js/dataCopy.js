@@ -82,12 +82,14 @@
                     'X-CSRF-TOKEN': token
                 },
                 success: function (data) {
-                    if(data && data.status === 'RUNNING') {
+                    if(data) {
                         startButtonContentBefore = startButton.innerHTML;
-                        startButton.innerHTML = startButtonContentBefore + ' ' + hac.global.getSpinnerImg();
-                        startButton.disabled = true;
-                        reportButton.disabled = true;
-                        stopButton.disabled = false;
+                        if(data.status === 'RUNNING') {
+                            startButton.innerHTML = startButtonContentBefore + ' ' + hac.global.getSpinnerImg();
+                        }
+                        startButton.disabled = data.status === 'RUNNING';
+                        reportButton.disabled = !(data.status === 'RUNNING');
+                        stopButton.disabled = !(data.status === 'RUNNING');
                         currentMigrationID = data.migrationID;
                         empty(logContainer);
                         updateStatus(data);
@@ -109,9 +111,13 @@
             startButton.disabled = true;
             reportButton.disabled = true;
             stopButton.disabled = false;
+            var isResumeUnfinishedItems = $("#resumeCheckbox").is(":checked");
             $.ajax({
                 url: startUrl,
-                type: 'PUT',
+                type: 'POST',
+                data: {
+                    resumeUnfinishedItems: isResumeUnfinishedItems
+                },
                 headers: {
                     'Accept': 'application/json',
                     'X-CSRF-TOKEN': token
@@ -218,7 +224,7 @@
                         logContainer.scrollTop = logContainer.scrollHeight - logContainer.clientHeight
                     }
                     updateStatus(status);
-                    if (status.completed || status.failed) {
+                    if (status.completed) {
                         startButton.innerHTML = startButtonContentBefore
                         startButton.disabled = false;
                         stopButton.disabled = true;

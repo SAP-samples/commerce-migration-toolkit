@@ -5,5 +5,5 @@ import org.sap.commercemigration.context.MigrationContext;
 import java.util.function.Predicate;
 
 public interface DataCopyTableFilter {
-    Predicate<String> filter(MigrationContext context);
+	Predicate<String> filter(MigrationContext context);
 }

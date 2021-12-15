@@ -10,12 +10,12 @@ import java.util.function.Predicate;
 
 public class ExclusionDataCopyTableFilter implements DataCopyTableFilter {
 
-    @Override
-    public Predicate<String> filter(MigrationContext context) {
-        Set<String> excludedTables = context.getExcludedTables();
-        if (excludedTables == null || excludedTables.isEmpty()) {
-            return Predicates.alwaysTrue();
-        }
-        return p -> excludedTables.stream().noneMatch(e -> StringUtils.equalsIgnoreCase(e, p));
-    }
+	@Override
+	public Predicate<String> filter(MigrationContext context) {
+		Set<String> excludedTables = context.getExcludedTables();
+		if (excludedTables == null || excludedTables.isEmpty()) {
+			return Predicates.alwaysTrue();
+		}
+		return p -> excludedTables.stream().noneMatch(e -> StringUtils.equalsIgnoreCase(e, p));
+	}
 }

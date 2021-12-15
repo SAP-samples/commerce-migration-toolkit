@@ -10,12 +10,4 @@
  license agreement you entered into with SAP.
 -->
 <project>
-    <macrodef name="commercemigrationhac_before_ear">
-        <sequential>
-
-            <!-- you can do anything before the EAR file is being packed -->
-
-        </sequential>
-    </macrodef>
-
 </project>

@@ -12,25 +12,25 @@ import java.util.List;
 
 public class DefaultMetricService implements MetricService {
 
-    private static final Logger LOG = LoggerFactory.getLogger(DefaultMetricService.class);
+	private static final Logger LOG = LoggerFactory.getLogger(DefaultMetricService.class);
 
-    private List<MetricPopulator> populators;
+	private List<MetricPopulator> populators;
 
-    public DefaultMetricService(List<MetricPopulator> populators) {
-        this.populators = populators;
-    }
+	public DefaultMetricService(List<MetricPopulator> populators) {
+		this.populators = populators;
+	}
 
-    @Override
-    public List<MetricData> getMetrics(MigrationContext context) {
-        List<MetricData> dataList = new ArrayList<>();
-        for (MetricPopulator populator : populators) {
-            try {
-                dataList.add(populator.populate(context));
-            } catch (Exception e) {
-                LOG.error("Error while populating metric. Populator: " + populator.getClass().getName(), e);
-            }
-        }
-        return dataList;
-    }
+	@Override
+	public List<MetricData> getMetrics(MigrationContext context) {
+		List<MetricData> dataList = new ArrayList<>();
+		for (MetricPopulator populator : populators) {
+			try {
+				dataList.add(populator.populate(context));
+			} catch (Exception e) {
+				LOG.error("Error while populating metric. Populator: " + populator.getClass().getName(), e);
+			}
+		}
+		return dataList;
+	}
 
 }

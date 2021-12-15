@@ -8,5 +8,5 @@ import javax.sql.DataSource;
  * Factory to create the DataSources used for Migration
  */
 public interface MigrationDataSourceFactory {
-    DataSource create(DataSourceConfiguration dataSourceConfiguration);
+	DataSource create(DataSourceConfiguration dataSourceConfiguration);
 }

@@ -60,5 +60,9 @@
         <property name="accepted" type="java.lang.Boolean"/>
     </bean>
 
+    <bean class="de.hybris.platform.commercemigrationhac.data.CopyConfigDTO">
+        <property name="resumeUnfinishedItems" type="java.lang.Boolean"/>
+    </bean>
+
 
 </beans>

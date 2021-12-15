@@ -4,5 +4,5 @@ import org.sap.commercemigration.context.CopyContext;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
 public interface DataWorkerPoolFactory {
-    ThreadPoolTaskExecutor create(CopyContext context);
+	ThreadPoolTaskExecutor create(CopyContext context);
 }

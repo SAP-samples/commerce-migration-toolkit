@@ -6,5 +6,5 @@ import org.sap.commercemigration.context.MigrationContext;
 import java.util.List;
 
 public interface MetricService {
-    List<MetricData> getMetrics(MigrationContext context);
+	List<MetricData> getMetrics(MigrationContext context);
 }

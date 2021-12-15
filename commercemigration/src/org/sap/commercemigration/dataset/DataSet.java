@@ -1,6 +1,5 @@
 package org.sap.commercemigration.dataset;
 
-import com.microsoft.sqlserver.jdbc.ISQLServerBulkData;
 import org.sap.commercemigration.dataset.impl.DefaultDataSet;
 
 import java.util.Collections;
@@ -8,17 +7,17 @@ import java.util.List;
 
 public interface DataSet {
 
-    DataSet EMPTY = new DefaultDataSet(0, Collections.EMPTY_LIST, Collections.EMPTY_LIST);
+	DataSet EMPTY = new DefaultDataSet(0, 0, Collections.emptyList(), Collections.emptyList());
 
-    int getColumnCount();
+	int getBatchId();
 
-    List<List<Object>> getAllResults();
+	int getColumnCount();
 
-    Object getColumnValue(String column, List<Object> row);
+	List<List<Object>> getAllResults();
 
-    boolean isNotEmpty();
+	Object getColumnValue(String column, List<Object> row);
 
-    boolean hasColumn(String column);
+	boolean isNotEmpty();
 
-    ISQLServerBulkData toSQLServerBulkData();
+	boolean hasColumn(String column);
 }

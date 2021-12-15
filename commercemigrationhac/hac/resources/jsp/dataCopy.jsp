@@ -6,6 +6,8 @@
     <link rel="stylesheet" href="<c:url value="/static/css/dataCopy.css"/>" type="text/css"
           media="screen, projection"/>
     <link rel="stylesheet" type="text/css" href="<c:url value="/static/css/chartjs/Chart.min.css"/>"/>
+    <link rel="stylesheet" href="<c:url value="/static/css/onoff.css"/>" type="text/css" media="screen, projection" />
+
     <script type="text/javascript" src="<c:url value="/static/js/history.js"/>"></script>
     <script type="text/javascript" src="<c:url value="/static/js/dataCopy.js"/>"></script>
     <script type="text/javascript" src="<c:url value="/static/js/migrationMetrics.js"/>"></script>
@@ -27,6 +29,16 @@
         <div class="clearfix">
             <button id="buttonCopyData" class="control-button" data-url="<c:url value="/commercemigrationhac/copyData"/>">Start</button>
             <button id="buttonStopCopyData" class="control-button" data-url="<c:url value="/commercemigrationhac/abortCopy"/>">Stop</button>
+        </div>
+        <div class="prepend-top clearfix">
+            <p><span class="placeholder">Resume Mode:</span></p>
+            <div class="onoffswitch-large" style="float:left;margin-top:7px">
+                <input type="checkbox" class="onoffswitch-checkbox" id="resumeCheckbox"/>
+                <label class="onoffswitch-label" for="resumeCheckbox">
+                    <div class="onoffswitch-inner" _on="ENABLED" _off="DISABLED"></div>
+                    <div class="onoffswitch-switch-large"></div>
+                </label>
+            </div>
         </div>
         <div class="prepend-top clearfix info marginRight">
             <div class="span-8">

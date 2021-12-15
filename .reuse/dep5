@@ -1,6 +1,6 @@
 Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
 Upstream-Name: commerce-migration-toolkit
-Upstream-Contact: cyrill.pedol@sap.com
+Upstream-Contact: cmt-technical-user@sap.com
 Source: https://github.com/sap-samples/commerce-migration-toolkit
 Disclaimer: The code in this project may include calls to APIs (“API Calls”) of
  SAP or third-party products or services developed outside of this project
@@ -25,5 +25,5 @@ Disclaimer: The code in this project may include calls to APIs (“API Calls”)
  parties the right to use of access any SAP External Product, through API Calls.
 
 Files: *
-Copyright: 2020 SAP SE or an SAP affiliate company and commerce-migration-toolkit contributors
+Copyright: 2021 SAP SE or an SAP affiliate company and commerce-migration-toolkit contributors
 License: Apache-2.0

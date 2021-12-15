@@ -1,14 +1,3 @@
-/*
- * [y] hybris Platform
- *
- * Copyright (c) 2000-2019 SAP SE
- * All rights reserved.
- *
- * This software is the confidential and proprietary information of SAP
- * Hybris ("Confidential Information"). You shall not disclose such
- * Confidential Information and shall use it only in accordance with the
- * terms of the license agreement you entered into with SAP Hybris.
- */
 package org.sap.commercemigration.service.impl;
 
 import org.sap.commercemigration.MigrationReport;
@@ -32,103 +21,111 @@ import static org.sap.commercemigration.constants.CommercemigrationConstants.MDC
 
 public class DefaultDatabaseMigrationService implements DatabaseMigrationService {
 
-    private DatabaseCopyScheduler databaseCopyScheduler;
-    private CopyItemProvider copyItemProvider;
-    private PerformanceProfiler performanceProfiler;
-    private DatabaseMigrationReportService databaseMigrationReportService;
-    private DatabaseSchemaDifferenceService schemaDifferenceService;
-    private MigrationContextValidator migrationContextValidator;
+	private DatabaseCopyScheduler databaseCopyScheduler;
+	private CopyItemProvider copyItemProvider;
+	private PerformanceProfiler performanceProfiler;
+	private DatabaseMigrationReportService databaseMigrationReportService;
+	private DatabaseSchemaDifferenceService schemaDifferenceService;
+	private MigrationContextValidator migrationContextValidator;
 
-    @Override
-    public String startMigration(final MigrationContext context) throws Exception {
-        migrationContextValidator.validateContext(context);
+	@Override
+	public String startMigration(final MigrationContext context) throws Exception {
+		migrationContextValidator.validateContext(context);
 
-        // TODO: running migration check
-        performanceProfiler.reset();
+		// TODO: running migration check
+		performanceProfiler.reset();
 
-        final String migrationId = UUID.randomUUID().toString();
+		final String migrationId = UUID.randomUUID().toString();
 
-        MDC.put(MDC_MIGRATIONID, migrationId);
+		MDC.put(MDC_MIGRATIONID, migrationId);
 
-        if (context.isSchemaMigrationEnabled() && context.isSchemaMigrationAutoTriggerEnabled()) {
-            schemaDifferenceService.executeSchemaDifferences(context);
-        }
+		if (context.isSchemaMigrationEnabled() && context.isSchemaMigrationAutoTriggerEnabled()) {
+			schemaDifferenceService.executeSchemaDifferences(context);
+		}
 
-        CopyContext copyContext = buildCopyContext(context, migrationId);
-        databaseCopyScheduler.schedule(copyContext);
+		CopyContext copyContext = buildCopyContext(context, migrationId);
+		databaseCopyScheduler.schedule(copyContext);
 
-        return migrationId;
-    }
+		return migrationId;
+	}
 
-    @Override
-    public void stopMigration(MigrationContext context, String migrationID) throws Exception {
-        CopyContext copyContext = buildIdContext(context, migrationID);
-        databaseCopyScheduler.abort(copyContext);
-    }
+	@Override
+	public void resumeUnfinishedMigration(MigrationContext context, String migrationID) throws Exception {
+		CopyContext copyContext = buildIdContext(context, migrationID);
+		databaseCopyScheduler.resumeUnfinishedItems(copyContext);
+	}
 
-    private CopyContext buildCopyContext(MigrationContext context, String migrationID) throws Exception {
-        Set<CopyContext.DataCopyItem> dataCopyItems = copyItemProvider.get(context);
-        return new CopyContext(migrationID, context, dataCopyItems, performanceProfiler);
-    }
+	@Override
+	public void stopMigration(MigrationContext context, String migrationID) throws Exception {
+		CopyContext copyContext = buildIdContext(context, migrationID);
+		databaseCopyScheduler.abort(copyContext);
+	}
 
-    private CopyContext buildIdContext(MigrationContext context, String migrationID) throws Exception {
-        //we use a lean implementation of the copy context to avoid calling the provider which is not required for task management.
-        return new CopyContext.IdCopyContext(migrationID, context, performanceProfiler);
-    }
+	private CopyContext buildCopyContext(MigrationContext context, String migrationID) throws Exception {
+		Set<CopyContext.DataCopyItem> dataCopyItems = copyItemProvider.get(context);
+		return new CopyContext(migrationID, context, dataCopyItems, performanceProfiler);
+	}
 
-    @Override
-    public MigrationStatus getMigrationState(MigrationContext context, String migrationID) throws Exception {
-        return getMigrationState(context, migrationID, OffsetDateTime.MAX);
-    }
+	private CopyContext buildIdContext(MigrationContext context, String migrationID) throws Exception {
+		// we use a lean implementation of the copy context to avoid calling the
+		// provider which is not required for task management.
+		return new CopyContext.IdCopyContext(migrationID, context, performanceProfiler);
+	}
 
-    @Override
-    public MigrationStatus getMigrationState(MigrationContext context, String migrationID, OffsetDateTime since) throws Exception {
-        CopyContext copyContext = buildIdContext(context, migrationID);
-        return databaseCopyScheduler.getCurrentState(copyContext, since);
-    }
+	@Override
+	public MigrationStatus getMigrationState(MigrationContext context, String migrationID) throws Exception {
+		return getMigrationState(context, migrationID, OffsetDateTime.MAX);
+	}
 
-    @Override
-    public MigrationReport getMigrationReport(MigrationContext context, String migrationID) throws Exception {
-        CopyContext copyContext = buildIdContext(context, migrationID);
-        return databaseMigrationReportService.getMigrationReport(copyContext);
-    }
+	@Override
+	public MigrationStatus getMigrationState(MigrationContext context, String migrationID, OffsetDateTime since)
+			throws Exception {
+		CopyContext copyContext = buildIdContext(context, migrationID);
+		return databaseCopyScheduler.getCurrentState(copyContext, since);
+	}
 
-    @Override
-    public MigrationStatus waitForFinish(MigrationContext context, String migrationID) throws Exception {
-        MigrationStatus status;
-        do {
-            status = getMigrationState(context, migrationID);
-            Thread.sleep(5000);
-        } while (!status.isCompleted());
+	@Override
+	public MigrationReport getMigrationReport(MigrationContext context, String migrationID) throws Exception {
+		CopyContext copyContext = buildIdContext(context, migrationID);
+		return databaseMigrationReportService.getMigrationReport(copyContext);
+	}
 
-        if (status.isFailed()) {
-            throw new Exception("Database migration failed");
-        }
+	@Override
+	public MigrationStatus waitForFinish(MigrationContext context, String migrationID) throws Exception {
+		MigrationStatus status;
+		do {
+			status = getMigrationState(context, migrationID);
+			Thread.sleep(5000);
+		} while (!status.isCompleted());
 
-        return status;
-    }
+		if (status.isFailed()) {
+			throw new Exception("Database migration failed");
+		}
 
-    public void setDatabaseCopyScheduler(DatabaseCopyScheduler databaseCopyScheduler) {
-        this.databaseCopyScheduler = databaseCopyScheduler;
-    }
+		return status;
+	}
 
-    public void setCopyItemProvider(CopyItemProvider copyItemProvider) {
-        this.copyItemProvider = copyItemProvider;
-    }
+	public void setDatabaseCopyScheduler(DatabaseCopyScheduler databaseCopyScheduler) {
+		this.databaseCopyScheduler = databaseCopyScheduler;
+	}
 
-    public void setPerformanceProfiler(PerformanceProfiler performanceProfiler) {
-        this.performanceProfiler = performanceProfiler;
-    }
+	public void setCopyItemProvider(CopyItemProvider copyItemProvider) {
+		this.copyItemProvider = copyItemProvider;
+	}
 
-    public void setDatabaseMigrationReportService(DatabaseMigrationReportService databaseMigrationReportService) {
-        this.databaseMigrationReportService = databaseMigrationReportService;
-    }
+	public void setPerformanceProfiler(PerformanceProfiler performanceProfiler) {
+		this.performanceProfiler = performanceProfiler;
+	}
 
-    public void setSchemaDifferenceService(DatabaseSchemaDifferenceService schemaDifferenceService) {
-        this.schemaDifferenceService = schemaDifferenceService;
-    }
+	public void setDatabaseMigrationReportService(DatabaseMigrationReportService databaseMigrationReportService) {
+		this.databaseMigrationReportService = databaseMigrationReportService;
+	}
 
-    public void setMigrationContextValidator(MigrationContextValidator migrationContextValidator) {
-        this.migrationContextValidator = migrationContextValidator;
-    }
+	public void setSchemaDifferenceService(DatabaseSchemaDifferenceService schemaDifferenceService) {
+		this.schemaDifferenceService = schemaDifferenceService;
+	}
+
+	public void setMigrationContextValidator(MigrationContextValidator migrationContextValidator) {
+		this.migrationContextValidator = migrationContextValidator;
+	}
 }
