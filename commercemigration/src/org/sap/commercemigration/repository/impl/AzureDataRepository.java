@@ -1,3 +1,7 @@
+/*
+ * Copyright: 2021 SAP SE or an SAP affiliate company and commerce-migration-toolkit contributors.
+ * License: Apache-2.0
+*/
 package org.sap.commercemigration.repository.impl;
 
 import com.google.common.base.Joiner;
@@ -107,7 +111,7 @@ public class AzureDataRepository extends AbstractDataRepository {
 		String query = "SELECT TOP 1 end_time, (SELECT Max(v) FROM (VALUES (avg_cpu_percent),(avg_data_io_percent),(avg_log_write_percent)) AS value(v)) AS [avg_DTU_percent] FROM sys.dm_db_resource_stats ORDER by end_time DESC;";
 		try (Connection connection = getConnection();
 				Statement stmt = connection.createStatement();
-				ResultSet resultSet = stmt.executeQuery(query);) {
+				ResultSet resultSet = stmt.executeQuery(query)) {
 			if (resultSet.next()) {
 				return resultSet.getFloat("avg_DTU_percent");
 			} else {

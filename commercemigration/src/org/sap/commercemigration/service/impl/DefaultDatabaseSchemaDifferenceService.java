@@ -1,3 +1,7 @@
+/*
+ * Copyright: 2021 SAP SE or an SAP affiliate company and commerce-migration-toolkit contributors.
+ * License: Apache-2.0
+*/
 package org.sap.commercemigration.service.impl;
 
 import com.google.common.base.Preconditions;
@@ -69,8 +73,8 @@ public class DefaultDatabaseSchemaDifferenceService implements DatabaseSchemaDif
 		Connection connection = platform.borrowConnection();
 		try {
 			platform.evaluateBatch(connection, sql, continueOnError);
-			LOG.info("Executed the following sql to change the schema:\n" + sql);
-			writeReport(context, sql);
+			LOG.info("Executed the following sql to change the schema:\n {}", sql);
+			writeReport(sql);
 		} catch (Exception e) {
 			throw new RuntimeException("Could not execute Schema Diff Script", e);
 		} finally {
@@ -93,7 +97,7 @@ public class DefaultDatabaseSchemaDifferenceService implements DatabaseSchemaDif
 		} catch (Exception e) {
 			LOG.error("Error occurred while trying to find duplicate tables", e);
 		}
-		return Collections.EMPTY_SET;
+		return Collections.emptySet();
 	}
 
 	private Set<String> findStagingPrefixes(MigrationContext context) throws Exception {
@@ -102,12 +106,10 @@ public class DefaultDatabaseSchemaDifferenceService implements DatabaseSchemaDif
 				.getTablePrefix();
 		final Set<String> targetSet = context.getDataTargetRepository().getAllTableNames();
 		String deploymentsTable = CommercemigrationConstants.DEPLOYMENTS_TABLE;
-		final Set<String> detectedPrefixes = targetSet.stream().filter(t -> t.toLowerCase().endsWith(deploymentsTable))
+		return targetSet.stream().filter(t -> t.toLowerCase().endsWith(deploymentsTable))
 				.filter(t -> !StringUtils.equalsIgnoreCase(t, currentSystemPrefix + deploymentsTable))
 				.filter(t -> !StringUtils.equalsIgnoreCase(t, currentMigrationPrefix + deploymentsTable))
 				.map(t -> StringUtils.removeEndIgnoreCase(t, deploymentsTable)).collect(Collectors.toSet());
-		return detectedPrefixes;
-
 	}
 
 	private Database getDatabaseModelWithChanges4TableDrop(MigrationContext context) {
@@ -115,9 +117,7 @@ public class DefaultDatabaseSchemaDifferenceService implements DatabaseSchemaDif
 		Database database = context.getDataTargetRepository().asDatabase(true);
 		// clear tables and add only the ones to be removed
 		Table[] tables = database.getTables();
-		Stream.of(tables).forEach(t -> {
-			database.removeTable(t);
-		});
+		Stream.of(tables).forEach(database::removeTable);
 		duplicateTables.forEach(t -> {
 			Table table = ObjectUtils.defaultIfNull(database.findTable(t), new Table());
 			table.setName(t);
@@ -182,7 +182,7 @@ public class DefaultDatabaseSchemaDifferenceService implements DatabaseSchemaDif
 					Column columnToBeRemoved = table.findColumn(superfluousColumn, false);
 					// remove indices in case column is part of one
 					Stream.of(table.getIndices()).filter(i -> i.hasColumn(columnToBeRemoved))
-							.forEach(i -> table.removeIndex(i));
+							.forEach(table::removeIndex);
 					table.removeColumn(columnToBeRemoved);
 				}
 			}
@@ -190,7 +190,7 @@ public class DefaultDatabaseSchemaDifferenceService implements DatabaseSchemaDif
 		return database;
 	}
 
-	protected void writeReport(MigrationContext migrationContext, String differenceSql) {
+	protected void writeReport(String differenceSql) {
 		try {
 			String fileName = String.format("schemaChanges-%s.sql", LocalDateTime.now().getNano());
 			databaseMigrationReportStorageService.store(fileName,
@@ -220,7 +220,7 @@ public class DefaultDatabaseSchemaDifferenceService implements DatabaseSchemaDif
 					sourceTableCandidates);
 			SchemaDifferenceResult schemaDifferenceResult = new SchemaDifferenceResult(sourceSchemaDifference,
 					targetSchemaDifference);
-			LOG.info("Diff finished. Differences detected: " + schemaDifferenceResult.hasDifferences());
+			LOG.info("Diff finished. Differences detected: {}", schemaDifferenceResult.hasDifferences());
 
 			return schemaDifferenceResult;
 		} catch (Exception e) {
@@ -237,7 +237,7 @@ public class DefaultDatabaseSchemaDifferenceService implements DatabaseSchemaDif
 			DataRepository rightRepository, Set<TableCandidate> leftCandidates) {
 		SchemaDifference schemaDifference = new SchemaDifference(rightRepository.asDatabase(),
 				rightRepository.getDataSourceConfiguration().getTablePrefix());
-		Set<TableCandidate> leftDatabaseTables = getTables(context, leftRepository, leftCandidates);
+		Set<TableCandidate> leftDatabaseTables = getTables(context, leftCandidates);
 		for (TableCandidate leftCandidate : leftDatabaseTables) {
 			Table leftTable = leftRepository.asDatabase().findTable(leftCandidate.getFullTableName(), false);
 			if (leftTable == null) {
@@ -245,7 +245,7 @@ public class DefaultDatabaseSchemaDifferenceService implements DatabaseSchemaDif
 						leftCandidate.getFullTableName(),
 						leftRepository.getDataSourceConfiguration().getConnectionString()));
 			}
-			String rightTableName = translateTableName(leftRepository, rightRepository, leftCandidate);
+			String rightTableName = translateTableName(rightRepository, leftCandidate);
 			Table rightTable = rightRepository.asDatabase().findTable(rightTableName, false);
 			if (rightTable == null) {
 				schemaDifference.getMissingTables().add(new TableKeyPair(leftTable.getName(), rightTableName));
@@ -262,8 +262,7 @@ public class DefaultDatabaseSchemaDifferenceService implements DatabaseSchemaDif
 		return schemaDifference;
 	}
 
-	private String translateTableName(DataRepository leftRepository, DataRepository rightRepository,
-			TableCandidate leftCandidate) {
+	private String translateTableName(DataRepository rightRepository, TableCandidate leftCandidate) {
 		String translatedTableName = rightRepository.getDataSourceConfiguration().getTablePrefix()
 				+ leftCandidate.getBaseTableName();
 		if (leftCandidate.isTypeSystemRelatedTable()) {
@@ -272,8 +271,7 @@ public class DefaultDatabaseSchemaDifferenceService implements DatabaseSchemaDif
 		return translatedTableName + leftCandidate.getAdditionalSuffix();
 	}
 
-	private Set<TableCandidate> getTables(MigrationContext context, DataRepository repository,
-			Set<TableCandidate> candidates) {
+	private Set<TableCandidate> getTables(MigrationContext context, Set<TableCandidate> candidates) {
 		return candidates.stream().filter(c -> dataCopyTableFilter.filter(context).test(c.getCommonTableName()))
 				.collect(Collectors.toSet());
 	}
@@ -313,10 +311,10 @@ public class DefaultDatabaseSchemaDifferenceService implements DatabaseSchemaDif
 		}
 
 		public boolean hasDifferences() {
-			boolean hasMissingTargetTables = getTargetSchema().getMissingTables().size() > 0;
-			boolean hasMissingColumnsInTargetTable = getTargetSchema().getMissingColumnsInTable().size() > 0;
-			boolean hasMissingSourceTables = getSourceSchema().getMissingTables().size() > 0;
-			boolean hasMissingColumnsInSourceTable = getSourceSchema().getMissingColumnsInTable().size() > 0;
+			boolean hasMissingTargetTables = !getTargetSchema().getMissingTables().isEmpty();
+			boolean hasMissingColumnsInTargetTable = !getTargetSchema().getMissingColumnsInTable().isEmpty();
+			boolean hasMissingSourceTables = !getSourceSchema().getMissingTables().isEmpty();
+			boolean hasMissingColumnsInSourceTable = !getSourceSchema().getMissingColumnsInTable().isEmpty();
 			return hasMissingTargetTables || hasMissingColumnsInTargetTable || hasMissingSourceTables
 					|| hasMissingColumnsInSourceTable;
 		}
@@ -372,10 +370,12 @@ public class DefaultDatabaseSchemaDifferenceService implements DatabaseSchemaDif
 
 		@Override
 		public boolean equals(Object o) {
-			if (this == o)
+			if (this == o) {
 				return true;
-			if (o == null || getClass() != o.getClass())
+			}
+			if (o == null || getClass() != o.getClass()) {
 				return false;
+			}
 			TableKeyPair that = (TableKeyPair) o;
 			return leftName.equals(that.leftName) && rightName.equals(that.rightName);
 		}

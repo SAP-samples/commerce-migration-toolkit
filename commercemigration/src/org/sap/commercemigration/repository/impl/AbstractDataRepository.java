@@ -1,3 +1,7 @@
+/*
+ * Copyright: 2021 SAP SE or an SAP affiliate company and commerce-migration-toolkit contributors.
+ * License: Apache-2.0
+*/
 package org.sap.commercemigration.repository.impl;
 
 import com.google.common.base.Joiner;
@@ -61,12 +65,12 @@ public abstract class AbstractDataRepository implements DataRepository {
 	private Platform platform;
 	private Database database;
 
-	public AbstractDataRepository(DataSourceConfiguration dataSourceConfiguration,
+	protected AbstractDataRepository(DataSourceConfiguration dataSourceConfiguration,
 			DatabaseMigrationDataTypeMapperService databaseMigrationDataTypeMapperService) {
 		this(dataSourceConfiguration, databaseMigrationDataTypeMapperService, new DefaultMigrationDataSourceFactory());
 	}
 
-	public AbstractDataRepository(DataSourceConfiguration dataSourceConfiguration,
+	protected AbstractDataRepository(DataSourceConfiguration dataSourceConfiguration,
 			DatabaseMigrationDataTypeMapperService databaseMigrationDataTypeMapperService,
 			MigrationDataSourceFactory migrationDataSourceFactory) {
 		this.dataSourceConfiguration = dataSourceConfiguration;
@@ -239,9 +243,7 @@ public abstract class AbstractDataRepository implements DataRepository {
 				Statement stmt = connection.createStatement();
 				ResultSet resultSet = stmt.executeQuery(getDisableIndexesScript(table))) {
 			while (resultSet.next()) {
-				String q = resultSet.getString(1);
-				LOG.debug("Running query: {}", q);
-				executeUpdateAndCommit(q);
+				runIndexQuery(resultSet);
 			}
 		}
 	}
@@ -252,9 +254,7 @@ public abstract class AbstractDataRepository implements DataRepository {
 				Statement stmt = connection.createStatement();
 				ResultSet resultSet = stmt.executeQuery(getEnableIndexesScript(table))) {
 			while (resultSet.next()) {
-				String q = resultSet.getString(1);
-				LOG.debug("Running query: {}", q);
-				executeUpdateAndCommit(q);
+				runIndexQuery(resultSet);
 			}
 		}
 	}
@@ -265,24 +265,27 @@ public abstract class AbstractDataRepository implements DataRepository {
 				Statement stmt = connection.createStatement();
 				ResultSet resultSet = stmt.executeQuery(getDropIndexesScript(table))) {
 			while (resultSet.next()) {
-				String q = resultSet.getString(1);
-				LOG.debug("Running query: {}", q);
-				executeUpdateAndCommit(q);
+				runIndexQuery(resultSet);
 			}
 		}
 	}
 
-	protected String getDisableIndexesScript(String table) {
-		throw new UnsupportedOperationException("not implemented");
+	private void runIndexQuery(ResultSet resultSet) throws SQLException {
+		String q = resultSet.getString(1);
+		LOG.debug("Running query: {}", q);
+		executeUpdateAndCommit(q);
+	}
 
+	protected String getDisableIndexesScript(String table) {
+		throw new UnsupportedOperationException();
 	}
 
 	protected String getEnableIndexesScript(String table) {
-		throw new UnsupportedOperationException("not implemented");
+		throw new UnsupportedOperationException();
 	}
 
 	protected String getDropIndexesScript(String table) {
-		throw new UnsupportedOperationException("not implemented");
+		throw new UnsupportedOperationException();
 	}
 
 	@Override
@@ -382,7 +385,7 @@ public abstract class AbstractDataRepository implements DataRepository {
 				typeSystemTable.setName(name);
 				typeSystemTable.setTypeSystemName(resultSet.getString("TypeSystemName"));
 				typeSystemTable.setPropsTableName(resultSet.getString("PropsTableName"));
-				typeSystemTable.setTypeSystemSuffix(detectTypeSystemSuffix(tableName, name));
+				typeSystemTable.setTypeSystemSuffix(detectTypeSystemSuffix(name));
 				typeSystemTable.setTypeSystemRelatedTable(PersistenceInformation.isTypeSystemRelatedDeployment(name));
 
 				if (hasAuditTable) {
@@ -395,7 +398,7 @@ public abstract class AbstractDataRepository implements DataRepository {
 		return allTypeSystemTables;
 	}
 
-	private String detectTypeSystemSuffix(String tableName, String name) {
+	private String detectTypeSystemSuffix(String name) {
 		if (PersistenceInformation.isTypeSystemRelatedDeployment(name)) {
 			return getDataSourceConfiguration().getTypeSystemSuffix();
 		}
@@ -407,7 +410,7 @@ public abstract class AbstractDataRepository implements DataRepository {
 		String tablePrefix = getDataSourceConfiguration().getTablePrefix();
 		String query = String.format("SELECT count(*) from %s%s WHERE AuditTableName = ? OR AuditTableName = ?",
 				StringUtils.defaultIfBlank(tablePrefix, ""), CommercemigrationConstants.DEPLOYMENTS_TABLE);
-		try (Connection connection = getConnection(); PreparedStatement stmt = connection.prepareStatement(query);) {
+		try (Connection connection = getConnection(); PreparedStatement stmt = connection.prepareStatement(query)) {
 			stmt.setObject(1, StringUtils.removeStartIgnoreCase(table, tablePrefix));
 			stmt.setObject(2, table);
 			try (ResultSet rs = stmt.executeQuery()) {

@@ -1,11 +1,13 @@
+/*
+ * Copyright: 2021 SAP SE or an SAP affiliate company and commerce-migration-toolkit contributors.
+ * License: Apache-2.0
+*/
 package org.sap.commercemigration.concurrent.impl;
 
 import com.google.common.collect.Lists;
 import org.apache.commons.lang3.tuple.Pair;
 import org.fest.util.Collections;
 import org.sap.commercemigration.MarkersQueryDefinition;
-import org.sap.commercemigration.OffsetQueryDefinition;
-import org.sap.commercemigration.SeekQueryDefinition;
 import org.sap.commercemigration.adapter.DataRepositoryAdapter;
 import org.sap.commercemigration.adapter.impl.ContextualDataRepositoryAdapter;
 import org.sap.commercemigration.concurrent.DataCopyMethod;
@@ -14,13 +16,15 @@ import org.sap.commercemigration.concurrent.DataPipeFactory;
 import org.sap.commercemigration.concurrent.DataWorkerExecutor;
 import org.sap.commercemigration.concurrent.DataWorkerPoolFactory;
 import org.sap.commercemigration.concurrent.MaybeFinished;
-import org.sap.commercemigration.concurrent.RetriableTask;
+import org.sap.commercemigration.concurrent.impl.task.BatchMarkerDataReaderTask;
+import org.sap.commercemigration.concurrent.impl.task.BatchOffsetDataReaderTask;
+import org.sap.commercemigration.concurrent.impl.task.DataReaderTask;
+import org.sap.commercemigration.concurrent.impl.task.DefaultDataReaderTask;
+import org.sap.commercemigration.concurrent.impl.task.PipeTaskContext;
 import org.sap.commercemigration.context.CopyContext;
-import org.sap.commercemigration.context.MigrationContext;
 import org.sap.commercemigration.dataset.DataSet;
 import org.sap.commercemigration.performance.PerformanceCategory;
 import org.sap.commercemigration.performance.PerformanceRecorder;
-import org.sap.commercemigration.performance.PerformanceUnit;
 import org.sap.commercemigration.scheduler.DatabaseCopyScheduler;
 import org.sap.commercemigration.service.DatabaseCopyBatch;
 import org.sap.commercemigration.service.DatabaseCopyTaskRepository;
@@ -146,8 +150,7 @@ public class DefaultDataPipeFactory implements DataPipeFactory<DataSet> {
 						long offset = batches.get(batchId);
 						DataReaderTask dataReaderTask = new BatchOffsetDataReaderTask(pipeTaskContext, batchId, offset,
 								batchColumns);
-						taskRepository.scheduleBatch(context, copyItem, batchId, offset,
-								Optional.of(offset + pageSize));
+						taskRepository.scheduleBatch(context, copyItem, batchId, offset, offset + pageSize);
 						workerExecutor.safelyExecute(dataReaderTask);
 					}
 				} else {
@@ -159,7 +162,7 @@ public class DefaultDataPipeFactory implements DataPipeFactory<DataSet> {
 					if (context.getMigrationContext().isSchedulerResumeEnabled()) {
 						taskRepository.resetPipelineBatches(context, copyItem);
 					}
-					taskRepository.scheduleBatch(context, copyItem, 0, 0, Optional.of(totalRows));
+					taskRepository.scheduleBatch(context, copyItem, 0, 0, totalRows);
 					DataReaderTask dataReaderTask = new DefaultDataReaderTask(pipeTaskContext);
 					workerExecutor.safelyExecute(dataReaderTask);
 				}
@@ -193,12 +196,12 @@ public class DefaultDataPipeFactory implements DataPipeFactory<DataSet> {
 					if (nextIndex < batchMarkersList.size()) {
 						nextBatchMarkerRow = Optional.of(batchMarkersList.get(nextIndex));
 					}
-					if (lastBatchMarkerRow != null && lastBatchMarkerRow.size() >= 1) {
+					if (!Collections.isEmpty(lastBatchMarkerRow)) {
 						Object lastBatchValue = lastBatchMarkerRow.get(0);
-						Pair<Object, Optional<Object>> batchMarkersPair = Pair.of(lastBatchValue,
-								nextBatchMarkerRow.map(v -> v.get(0)));
-						DataReaderTask dataReaderTask = new BatchMarkerDataReaderTask(pipeTaskContext, i, copyItem,
-								batchColumn, batchMarkersPair);
+						Pair<Object, Object> batchMarkersPair = Pair.of(lastBatchValue,
+								nextBatchMarkerRow.map(v -> v.get(0)).orElseGet(() -> null));
+						DataReaderTask dataReaderTask = new BatchMarkerDataReaderTask(pipeTaskContext, i, batchColumn,
+								batchMarkersPair);
 						// After creating the task, we register the batch in the db for later use if
 						// necessary
 						taskRepository.scheduleBatch(context, copyItem, i, batchMarkersPair.getLeft(),
@@ -210,176 +213,11 @@ public class DefaultDataPipeFactory implements DataPipeFactory<DataSet> {
 				}
 			}
 		} catch (Exception ex) {
-			LOG.error("{{}}: Exception while preparing reader tasks", table, ex);
 			pipe.requestAbort(ex);
 			if (ex instanceof InterruptedException) {
 				Thread.currentThread().interrupt();
 			}
 			throw new RuntimeException("Exception while preparing reader tasks", ex);
-		}
-	}
-
-	private static abstract class DataReaderTask extends RetriableTask {
-		private static final Logger LOG = LoggerFactory.getLogger(DataReaderTask.class);
-
-		private PipeTaskContext pipeTaskContext;
-
-		public DataReaderTask(PipeTaskContext pipeTaskContext) {
-			super(pipeTaskContext.getContext(), pipeTaskContext.getTable());
-			this.pipeTaskContext = pipeTaskContext;
-		}
-
-		public PipeTaskContext getPipeTaskContext() {
-			return pipeTaskContext;
-		}
-	}
-
-	private static class DefaultDataReaderTask extends DataReaderTask {
-
-		public DefaultDataReaderTask(PipeTaskContext pipeTaskContext) {
-			super(pipeTaskContext);
-		}
-
-		@Override
-		protected Boolean internalRun() throws Exception {
-			process();
-			return Boolean.TRUE;
-		}
-
-		private void process() throws Exception {
-			MigrationContext migrationContext = getPipeTaskContext().getContext().getMigrationContext();
-			DataSet all = getPipeTaskContext().getDataRepositoryAdapter().getAll(migrationContext,
-					getPipeTaskContext().getTable());
-			getPipeTaskContext().getRecorder().record(PerformanceUnit.ROWS, all.getAllResults().size());
-			getPipeTaskContext().getPipe().put(MaybeFinished.of(all));
-		}
-	}
-
-	private static class BatchOffsetDataReaderTask extends DataReaderTask {
-
-		private final long offset;
-		private final Set<String> batchColumns;
-		private final int batchId;
-
-		public BatchOffsetDataReaderTask(PipeTaskContext pipeTaskContext, int batchId, long offset,
-				Set<String> batchColumns) {
-			super(pipeTaskContext);
-			this.batchId = batchId;
-			this.offset = offset;
-			this.batchColumns = batchColumns;
-		}
-
-		@Override
-		protected Boolean internalRun() throws Exception {
-			process();
-			return Boolean.TRUE;
-		}
-
-		private void process() throws Exception {
-			DataRepositoryAdapter adapter = getPipeTaskContext().getDataRepositoryAdapter();
-			CopyContext context = getPipeTaskContext().getContext();
-			String table = getPipeTaskContext().getTable();
-			long pageSize = getPipeTaskContext().getPageSize();
-			OffsetQueryDefinition queryDefinition = new OffsetQueryDefinition();
-			queryDefinition.setBatchId(batchId);
-			queryDefinition.setTable(table);
-			queryDefinition.setAllColumns(batchColumns);
-			queryDefinition.setBatchSize(pageSize);
-			queryDefinition.setOffset(offset);
-			DataSet result = adapter.getBatchWithoutIdentifier(context.getMigrationContext(), queryDefinition);
-			getPipeTaskContext().getRecorder().record(PerformanceUnit.ROWS, result.getAllResults().size());
-			getPipeTaskContext().getPipe().put(MaybeFinished.of(result));
-		}
-	}
-
-	private static class BatchMarkerDataReaderTask extends DataReaderTask {
-
-		private final String batchColumn;
-		private final Pair<Object, Optional<Object>> batchMarkersPair;
-		private final int batchId;
-		private final CopyContext.DataCopyItem copyItem;
-
-		public BatchMarkerDataReaderTask(PipeTaskContext pipeTaskContext, int batchId,
-				CopyContext.DataCopyItem copyItem, String batchColumn,
-				Pair<Object, Optional<Object>> batchMarkersPair) {
-			super(pipeTaskContext);
-			this.batchId = batchId;
-			this.copyItem = copyItem;
-			this.batchColumn = batchColumn;
-			this.batchMarkersPair = batchMarkersPair;
-		}
-
-		@Override
-		protected Boolean internalRun() throws Exception {
-			process(batchMarkersPair.getLeft(), batchMarkersPair.getRight());
-			return Boolean.TRUE;
-		}
-
-		private void process(Object lastValue, Optional<Object> nextValue) throws Exception {
-			CopyContext ctx = getPipeTaskContext().getContext();
-			DataRepositoryAdapter adapter = getPipeTaskContext().getDataRepositoryAdapter();
-			String table = getPipeTaskContext().getTable();
-			long pageSize = getPipeTaskContext().getPageSize();
-			SeekQueryDefinition queryDefinition = new SeekQueryDefinition();
-			queryDefinition.setBatchId(batchId);
-			queryDefinition.setTable(table);
-			queryDefinition.setColumn(batchColumn);
-			queryDefinition.setLastColumnValue(lastValue);
-			queryDefinition.setNextColumnValue(nextValue.orElseGet(() -> null));
-			queryDefinition.setBatchSize(pageSize);
-			DataSet page = adapter.getBatchOrderedByColumn(ctx.getMigrationContext(), queryDefinition);
-			getPipeTaskContext().getRecorder().record(PerformanceUnit.ROWS, pageSize);
-			getPipeTaskContext().getPipe().put(MaybeFinished.of(page));
-		}
-	}
-
-	private static class PipeTaskContext {
-		private CopyContext context;
-		private DataPipe<DataSet> pipe;
-		private String table;
-		private DataRepositoryAdapter dataRepositoryAdapter;
-		private long pageSize;
-		private PerformanceRecorder recorder;
-		private DatabaseCopyTaskRepository taskRepository;
-
-		public PipeTaskContext(CopyContext context, DataPipe<DataSet> pipe, String table,
-				DataRepositoryAdapter dataRepositoryAdapter, long pageSize, PerformanceRecorder recorder,
-				DatabaseCopyTaskRepository taskRepository) {
-			this.context = context;
-			this.pipe = pipe;
-			this.table = table;
-			this.dataRepositoryAdapter = dataRepositoryAdapter;
-			this.pageSize = pageSize;
-			this.recorder = recorder;
-			this.taskRepository = taskRepository;
-		}
-
-		public CopyContext getContext() {
-			return context;
-		}
-
-		public DataPipe<DataSet> getPipe() {
-			return pipe;
-		}
-
-		public String getTable() {
-			return table;
-		}
-
-		public DataRepositoryAdapter getDataRepositoryAdapter() {
-			return dataRepositoryAdapter;
-		}
-
-		public long getPageSize() {
-			return pageSize;
-		}
-
-		public PerformanceRecorder getRecorder() {
-			return recorder;
-		}
-
-		public DatabaseCopyTaskRepository getTaskRepository() {
-			return taskRepository;
 		}
 	}
 

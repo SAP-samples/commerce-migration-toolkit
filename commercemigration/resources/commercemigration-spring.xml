@@ -143,7 +143,6 @@
 
     <alias name="defaultPipeWriterStrategy" alias="pipeWriterStrategy"/>
     <bean id="defaultPipeWriterStrategy" class="org.sap.commercemigration.strategy.impl.CopyPipeWriterStrategy">
-        <constructor-arg ref="databaseMigrationDataTypeMapperService"/>
         <constructor-arg ref="databaseCopyTaskRepository"/>
         <constructor-arg ref="dataWriteWorkerPoolFactory"/>
     </bean>

@@ -1,3 +1,7 @@
+/*
+ * Copyright: 2021 SAP SE or an SAP affiliate company and commerce-migration-toolkit contributors.
+ * License: Apache-2.0
+*/
 package org.sap.commercemigration.service.impl;
 
 import com.microsoft.azure.storage.CloudStorageAccount;
@@ -10,6 +14,7 @@ import com.microsoft.azure.storage.blob.ListBlobItem;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.StringUtils;
 import org.sap.commercemigration.context.MigrationContext;
+import org.sap.commercemigration.service.DatabaseMigrationReportStorageService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -18,9 +23,7 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 
-public class BlobDatabaseMigrationReportStorageService
-		implements
-			org.sap.commercemigration.service.DatabaseMigrationReportStorageService {
+public class BlobDatabaseMigrationReportStorageService implements DatabaseMigrationReportStorageService {
 
 	private static final Logger LOG = LoggerFactory
 			.getLogger(BlobDatabaseMigrationReportStorageService.class.getName());
@@ -64,9 +67,7 @@ public class BlobDatabaseMigrationReportStorageService
 		getCloudBlobClient();
 		Iterable<ListBlobItem> migrationBlobs = cloudBlobClient.getContainerReference(ROOT_CONTAINER).listBlobs();
 		List<CloudBlockBlob> result = new ArrayList<>();
-		migrationBlobs.forEach(blob -> {
-			result.add((CloudBlockBlob) blob);
-		});
+		migrationBlobs.forEach(blob -> result.add((CloudBlockBlob) blob));
 		return result;
 	}
 

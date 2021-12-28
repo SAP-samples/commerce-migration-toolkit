@@ -1,3 +1,7 @@
+/*
+ * Copyright: 2021 SAP SE or an SAP affiliate company and commerce-migration-toolkit contributors.
+ * License: Apache-2.0
+*/
 package org.sap.commercemigration.context.validation.impl;
 
 import de.hybris.platform.servicelayer.config.ConfigurationService;
@@ -16,8 +20,8 @@ public class DefaultMigrationContextValidator implements MigrationContextValidat
 	@Override
 	public void validateContext(final MigrationContext context) {
 		checkSourceDbIsNotTargetDb(context);
-		checkSystemNotLocked(context);
-		checkDefaultLocaleExists(context);
+		checkSystemNotLocked();
+		checkDefaultLocaleExists();
 	}
 
 	private void checkSourceDbIsNotTargetDb(MigrationContext context) {
@@ -32,7 +36,7 @@ public class DefaultMigrationContextValidator implements MigrationContextValidat
 		}
 	}
 
-	private void checkSystemNotLocked(MigrationContext context) {
+	private void checkSystemNotLocked() {
 		final boolean isSystemLocked = getConfigurationService().getConfiguration().getBoolean(DISABLE_UNLOCKING);
 		if (isSystemLocked) {
 			throw new RuntimeException(
@@ -40,7 +44,7 @@ public class DefaultMigrationContextValidator implements MigrationContextValidat
 		}
 	}
 
-	private void checkDefaultLocaleExists(MigrationContext context) {
+	private void checkDefaultLocaleExists() {
 		// we check this for locale related comparison
 		Locale defaultLocale = Locale.getDefault();
 		if (defaultLocale == null || StringUtils.isEmpty(defaultLocale.toString())) {

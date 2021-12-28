@@ -1,3 +1,7 @@
+/*
+ * Copyright: 2021 SAP SE or an SAP affiliate company and commerce-migration-toolkit contributors.
+ * License: Apache-2.0
+*/
 package org.sap.commercemigration.concurrent.impl;
 
 import org.sap.commercemigration.concurrent.DataWorkerPoolFactory;
@@ -7,12 +11,14 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
 public class DefaultDataWorkerPoolFactory implements DataWorkerPoolFactory {
 
+	private static final int MAX_CAPACITY = 2147483647;
+
 	private TaskDecorator taskDecorator;
 	private String threadNamePrefix;
 	private int corePoolSize;
 	private int maxPoolSize;
 	private int keepAliveSeconds;
-	private int queueCapacity = 2147483647;
+	private int queueCapacity = MAX_CAPACITY;
 
 	public DefaultDataWorkerPoolFactory(TaskDecorator taskDecorator, String threadNamePrefix, int maxPoolSize,
 			int keepAliveSeconds, boolean queueable) {

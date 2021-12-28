@@ -1,3 +1,7 @@
+/*
+ * Copyright: 2021 SAP SE or an SAP affiliate company and commerce-migration-toolkit contributors.
+ * License: Apache-2.0
+*/
 package org.sap.commercemigration.scheduler.impl;
 
 import de.hybris.platform.core.Registry;
@@ -51,8 +55,6 @@ public class CustomClusterDatabaseCopyScheduler implements DatabaseCopyScheduler
 	private DatabaseCopyTaskRepository databaseCopyTaskRepository;
 
 	private DatabaseCopySchedulerAlgorithm databaseCopySchedulerAlgorithm;
-
-	private Thread monitor;
 
 	/**
 	 * Schedules a Data Copy Task for each table across all the available nodes
@@ -124,7 +126,7 @@ public class CustomClusterDatabaseCopyScheduler implements DatabaseCopyScheduler
 	private void startMonitorThread(CopyContext context) {
 		JaloSession jaloSession = JaloSession.getCurrentSession();
 
-		monitor = new Thread(new MigrationMonitor(context, jaloSession), "MigrationMonitor");
+		Thread monitor = new Thread(new MigrationMonitor(context, jaloSession), "MigrationMonitor");
 		monitor.start();
 	}
 
@@ -147,7 +149,7 @@ public class CustomClusterDatabaseCopyScheduler implements DatabaseCopyScheduler
 	@Override
 	public boolean isAborted(CopyContext context) throws Exception {
 		MigrationStatus current = this.databaseCopyTaskRepository.getMigrationStatus(context);
-		return MigrationProgress.ABORTED.equals(current.getStatus());
+		return MigrationProgress.ABORTED == current.getStatus();
 	}
 
 	@Override

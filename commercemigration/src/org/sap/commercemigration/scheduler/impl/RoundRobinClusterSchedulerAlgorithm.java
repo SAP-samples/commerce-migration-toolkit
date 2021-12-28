@@ -1,5 +1,10 @@
+/*
+ * Copyright: 2021 SAP SE or an SAP affiliate company and commerce-migration-toolkit contributors.
+ * License: Apache-2.0
+*/
 package org.sap.commercemigration.scheduler.impl;
 
+import com.google.common.collect.ImmutableList;
 import de.hybris.platform.cluster.PingBroadcastHandler;
 import de.hybris.platform.servicelayer.cluster.ClusterService;
 import org.apache.commons.collections4.CollectionUtils;
@@ -37,7 +42,7 @@ public class RoundRobinClusterSchedulerAlgorithm implements DatabaseCopySchedule
 	@Override
 	public List<Integer> getNodeIds() {
 		if (nodeIds == null) {
-			nodeIds = detectClusterNodes();
+			nodeIds = ImmutableList.copyOf(detectClusterNodes());
 		}
 		return nodeIds;
 	}

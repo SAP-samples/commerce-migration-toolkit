@@ -1,3 +1,7 @@
+/*
+ * Copyright: 2021 SAP SE or an SAP affiliate company and commerce-migration-toolkit contributors.
+ * License: Apache-2.0
+*/
 package org.sap.commercemigration.performance;
 
 import com.google.common.base.Joiner;
@@ -6,6 +10,7 @@ import com.google.common.util.concurrent.AtomicDouble;
 
 import javax.annotation.concurrent.ThreadSafe;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -59,7 +64,7 @@ public class PerformanceRecorder {
 		}
 	}
 
-	public ConcurrentHashMap<PerformanceUnit, PerformanceAggregation> getRecords() {
+	public ConcurrentMap<PerformanceUnit, PerformanceAggregation> getRecords() {
 		return records;
 	}
 

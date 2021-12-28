@@ -1,3 +1,7 @@
+/*
+ * Copyright: 2021 SAP SE or an SAP affiliate company and commerce-migration-toolkit contributors.
+ * License: Apache-2.0
+*/
 package org.sap.commercemigration.events.handlers;
 
 import de.hybris.platform.servicelayer.event.impl.AbstractEventListener;
@@ -51,12 +55,12 @@ public class CopyCompleteEventListener extends AbstractEventListener<CopyComplet
 		try {
 			Transaction.current().execute(new TransactionBody() {
 				@Override
-				public Object execute() throws Exception {
+				public Boolean execute() throws Exception {
 
 					MigrationStatus status = databaseCopyTaskRepository.getMigrationStatus(copyContext);
 
 					if (status.isFailed()) {
-						return null;
+						return Boolean.FALSE;
 					}
 
 					LOG.debug("Starting PostProcessor execution");
@@ -68,12 +72,11 @@ public class CopyCompleteEventListener extends AbstractEventListener<CopyComplet
 
 					databaseCopyTaskRepository.setMigrationStatus(copyContext, MigrationProgress.PROCESSED,
 							MigrationProgress.COMPLETED);
-					return null;
+					return Boolean.TRUE;
 				}
 			});
 		} catch (final Exception e) {
 			LOG.error("Error during PostProcessor execution", e);
-			throw new RuntimeException(e);
 		}
 	}
 

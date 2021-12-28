@@ -1,3 +1,7 @@
+/*
+ * Copyright: 2021 SAP SE or an SAP affiliate company and commerce-migration-toolkit contributors.
+ * License: Apache-2.0
+*/
 package org.sap.commercemigration.context;
 
 import org.sap.commercemigration.performance.PerformanceProfiler;
@@ -99,10 +103,12 @@ public class CopyContext {
 
 		@Override
 		public boolean equals(Object o) {
-			if (this == o)
+			if (this == o) {
 				return true;
-			if (o == null || getClass() != o.getClass())
+			}
+			if (o == null || getClass() != o.getClass()) {
 				return false;
+			}
 			DataCopyItem that = (DataCopyItem) o;
 			return getSourceItem().equals(that.getSourceItem()) && getTargetItem().equals(that.getTargetItem());
 		}

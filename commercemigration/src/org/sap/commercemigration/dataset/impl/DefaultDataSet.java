@@ -1,3 +1,7 @@
+/*
+ * Copyright: 2021 SAP SE or an SAP affiliate company and commerce-migration-toolkit contributors.
+ * License: Apache-2.0
+*/
 package org.sap.commercemigration.dataset.impl;
 
 import com.github.freva.asciitable.AsciiTable;
@@ -67,8 +71,8 @@ public class DefaultDataSet implements DataSet {
 
 	public String toString() {
 		String[] headers = columnOrder.stream().map(DataColumn::getColumnName).toArray(String[]::new);
-		String[][] data = getAllResults().stream()
-				.map(l -> l.stream().map(v -> String.valueOf(v)).toArray(String[]::new)).toArray(String[][]::new);
+		String[][] data = getAllResults().stream().map(l -> l.stream().map(String::valueOf).toArray(String[]::new))
+				.toArray(String[][]::new);
 		return AsciiTable.getTable(headers, data);
 	}
 

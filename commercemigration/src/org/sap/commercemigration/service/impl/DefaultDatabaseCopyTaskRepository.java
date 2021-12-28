@@ -1,3 +1,7 @@
+/*
+ * Copyright: 2021 SAP SE or an SAP affiliate company and commerce-migration-toolkit contributors.
+ * License: Apache-2.0
+*/
 package org.sap.commercemigration.service.impl;
 
 import com.google.common.base.Joiner;
@@ -15,6 +19,8 @@ import org.sap.commercemigration.performance.PerformanceUnit;
 import org.sap.commercemigration.service.DatabaseCopyBatch;
 import org.sap.commercemigration.service.DatabaseCopyTask;
 import org.sap.commercemigration.service.DatabaseCopyTaskRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -40,6 +46,8 @@ import java.util.TimeZone;
  * cluster
  */
 public class DefaultDatabaseCopyTaskRepository implements DatabaseCopyTaskRepository {
+
+	private static final Logger LOG = LoggerFactory.getLogger(DefaultDatabaseCopyTaskRepository.class);
 
 	private ClusterService clusterService;
 
@@ -115,9 +123,9 @@ public class DefaultDatabaseCopyTaskRepository implements DatabaseCopyTaskReposi
 		status.setStatus(MigrationProgress.valueOf(rs.getString("status")));
 
 		status.setCompleted(status.getTotalTasks() == status.getCompletedTasks()
-				|| MigrationProgress.STALLED.equals(status.getStatus()));
-		status.setFailed(status.getFailedTasks() > 0 || MigrationProgress.STALLED.equals(status.getStatus()));
-		status.setAborted(MigrationProgress.ABORTED.equals(status.getStatus()));
+				|| MigrationProgress.STALLED == status.getStatus());
+		status.setFailed(status.getFailedTasks() > 0 || MigrationProgress.STALLED == status.getStatus());
+		status.setAborted(MigrationProgress.ABORTED == status.getStatus());
 		status.setStatusUpdates(Collections.emptyList());
 
 		return status;
@@ -163,14 +171,15 @@ public class DefaultDatabaseCopyTaskRepository implements DatabaseCopyTaskReposi
 
 	@Override
 	public void scheduleBatch(CopyContext context, CopyContext.DataCopyItem copyItem, int batchId, Object lowerBoundary,
-			Optional<Object> upperBoundary) throws Exception {
+			Object upperBoundary) throws Exception {
+		LOG.debug("Schedule Batch for {} with ID {}", copyItem.getPipelineName(), batchId);
 		String insert = "INSERT INTO MIGRATIONTOOLKIT_TABLECOPYBATCHES (migrationId, batchId, pipelinename, lowerBoundary, upperBoundary) VALUES (?, ?, ?, ?, ?)";
 		try (Connection conn = getConnection(context); PreparedStatement stmt = conn.prepareStatement(insert)) {
 			stmt.setObject(1, context.getMigrationId());
 			stmt.setObject(2, batchId);
 			stmt.setObject(3, copyItem.getPipelineName());
 			stmt.setObject(4, lowerBoundary);
-			stmt.setObject(5, upperBoundary.orElse(null));
+			stmt.setObject(5, upperBoundary);
 			stmt.executeUpdate();
 			conn.commit();
 		}
@@ -188,6 +197,7 @@ public class DefaultDatabaseCopyTaskRepository implements DatabaseCopyTaskReposi
 	@Override
 	public void markBatchCompleted(Connection connection, CopyContext context, CopyContext.DataCopyItem copyItem,
 			int batchId) throws Exception {
+		LOG.debug("Mark batch completed for {} with ID {}", copyItem.getPipelineName(), batchId);
 		String insert = "DELETE FROM MIGRATIONTOOLKIT_TABLECOPYBATCHES WHERE migrationId=? AND batchId=? AND pipelinename=?";
 		try (PreparedStatement stmt = connection.prepareStatement(insert)) {
 			stmt.setObject(1, context.getMigrationId());

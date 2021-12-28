@@ -1,3 +1,7 @@
+/*
+ * Copyright: 2021 SAP SE or an SAP affiliate company and commerce-migration-toolkit contributors.
+ * License: Apache-2.0
+*/
 package org.sap.commercemigration.repository.platform;
 
 import de.hybris.bootstrap.ddl.DatabaseSettings;
@@ -21,7 +25,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
-public class MigrationHybrisMSSqlPlatform extends MSSqlPlatform implements HybrisPlatform {
+public final class MigrationHybrisMSSqlPlatform extends MSSqlPlatform implements HybrisPlatform {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MigrationHybrisMSSqlPlatform.class);
 
@@ -39,6 +43,7 @@ public class MigrationHybrisMSSqlPlatform extends MSSqlPlatform implements Hybri
 		return instance;
 	}
 
+	@Override
 	public Database readModelFromDatabase(String name) throws DatabaseOperationException {
 		return this.readModelFromDatabase(name, (String) null, (String) null, (String[]) null);
 	}
@@ -90,6 +95,7 @@ public class MigrationHybrisMSSqlPlatform extends MSSqlPlatform implements Hybri
 			tablesToExclude.add("trace_xe_event_map");
 		}
 
+		@Override
 		protected Table readTable(DatabaseMetaDataWrapper metaData, Map values) throws SQLException {
 			return this.tableShouldBeExcluded(values) ? null : super.readTable(metaData, values);
 		}
@@ -100,7 +106,7 @@ public class MigrationHybrisMSSqlPlatform extends MSSqlPlatform implements Hybri
 		}
 
 		private String getTableNameFrom(Map values) {
-			return (String) values.get("TABLE_NAME");
+			return (String) values.get(TABLE_NAME_KEY);
 		}
 	}
 }

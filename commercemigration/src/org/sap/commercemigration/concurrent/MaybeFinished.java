@@ -1,3 +1,7 @@
+/*
+ * Copyright: 2021 SAP SE or an SAP affiliate company and commerce-migration-toolkit contributors.
+ * License: Apache-2.0
+*/
 package org.sap.commercemigration.concurrent;
 
 /**
@@ -7,7 +11,7 @@ package org.sap.commercemigration.concurrent;
  *
  * @param <T>
  */
-public class MaybeFinished<T> {
+public final class MaybeFinished<T> {
 	private final T value;
 	private final boolean done;
 	private final boolean poison;
