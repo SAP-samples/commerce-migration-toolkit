@@ -10,10 +10,6 @@ import java.time.Instant;
 import java.util.Map;
 import java.util.Set;
 
-/**
- * The MigrationContext contains all information needed to perform a Source ->
- * Target Migration
- */
 public interface MigrationContext {
 	DataRepository getDataSourceRepository();
 
@@ -81,9 +77,21 @@ public interface MigrationContext {
 
 	int getStalledTimeout();
 
-	String getMigrationReportConnectionString();
+	String getFileStorageConnectionString();
 
 	int getMaxTargetStagedMigrations();
 
 	boolean isSchedulerResumeEnabled();
+
+	boolean isLogSql();
+
+	boolean isLogSqlParamsForSource();
+
+	int getSqlStoreMemoryFlushThreshold();
+
+	String getFileStorageContainerName();
+
+	Set<String> getInputProfiles();
+
+	Set<String> getOutputProfiles();
 }

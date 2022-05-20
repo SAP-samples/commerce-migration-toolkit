@@ -11,6 +11,8 @@
         const statusUrl = statusContainer.dataset.url;
         const logContainer = document.getElementById("copyLogContainer");
         const reportButton = document.getElementById("buttonCopyReport")
+        const dataSourceButton = document.getElementById("buttonDataSourceReport")
+        const dataTargetButton = document.getElementById("buttonDataTargetReport")
         const reportForm = document.getElementById("formCopyReport")
         const token = document.querySelector('meta[name="_csrf"]').content;
         const switchPrefixButton = document.getElementById("buttonSwitchPrefix")
@@ -25,6 +27,8 @@
         stopButton.addEventListener('click', stopCopy);
         switchPrefixButton.disabled = true;
         switchPrefixButton.addEventListener('click', switchPrefix);
+
+        ConfigPanel.initPanel($('#configPanel'));
 
         resumeRunning();
 
@@ -89,6 +93,14 @@
                         }
                         startButton.disabled = data.status === 'RUNNING';
                         reportButton.disabled = !(data.status === 'RUNNING');
+                        if (dataSourceButton) {
+                            dataSourceButton.disabled = !(data.status
+                                    === 'RUNNING');
+                        }
+                        if (dataTargetButton) {
+                            dataTargetButton.disabled = !(data.status
+                                    === 'RUNNING');
+                        }
                         stopButton.disabled = !(data.status === 'RUNNING');
                         currentMigrationID = data.migrationID;
                         empty(logContainer);
@@ -110,17 +122,20 @@
             startButton.innerHTML = startButtonContentBefore + ' ' + hac.global.getSpinnerImg();
             startButton.disabled = true;
             reportButton.disabled = true;
+            if (dataSourceButton) {
+                dataSourceButton.disabled = true;
+            }
+            if (dataTargetButton) {
+                dataTargetButton.disabled = true;
+            }
             stopButton.disabled = false;
-            var isResumeUnfinishedItems = $("#resumeCheckbox").is(":checked");
             $.ajax({
                 url: startUrl,
                 type: 'POST',
-                data: {
-                    resumeUnfinishedItems: isResumeUnfinishedItems
-                },
+                data: ConfigPanel.values(),
                 headers: {
                     'Accept': 'application/json',
-                    'X-CSRF-TOKEN': token
+                    'X-CSRF-TOKEN': token,
                 },
                 success: function (data) {
                     currentMigrationID = data.migrationID;
@@ -230,6 +245,14 @@
                         stopButton.disabled = true;
                         $(reportForm).children('input[name=migrationId]').val(currentMigrationID);
                         reportButton.disabled = false;
+                        if (dataSourceButton) {
+                            $(dataSourceButton).siblings('input[name=migrationId]').val(currentMigrationID);
+                            dataSourceButton.disabled = false;
+                        }
+                        if (dataTargetButton) {
+                            $(dataTargetButton).siblings('input[name=migrationId]').val(currentMigrationID);
+                            dataTargetButton.disabled = false;
+                        }
                         clearInterval(pollInterval);
                     }
                 },

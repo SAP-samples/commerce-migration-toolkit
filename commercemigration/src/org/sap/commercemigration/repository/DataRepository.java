@@ -5,6 +5,7 @@
 package org.sap.commercemigration.repository;
 
 import de.hybris.bootstrap.ddl.DataBaseProvider;
+import java.sql.Connection;
 import org.apache.ddlutils.Platform;
 import org.apache.ddlutils.model.Database;
 import org.sap.commercemigration.MarkersQueryDefinition;
@@ -12,11 +13,11 @@ import org.sap.commercemigration.OffsetQueryDefinition;
 import org.sap.commercemigration.SeekQueryDefinition;
 import org.sap.commercemigration.TypeSystemTable;
 import org.sap.commercemigration.dataset.DataSet;
+import org.sap.commercemigration.logging.JDBCQueriesStore;
 import org.sap.commercemigration.profile.DataSourceConfiguration;
 import org.springframework.core.io.Resource;
 
 import javax.sql.DataSource;
-import java.sql.Connection;
 import java.sql.SQLException;
 import java.time.Instant;
 import java.util.Set;
@@ -86,4 +87,16 @@ public interface DataRepository {
 	DataSet getUniqueColumns(String table) throws Exception;
 
 	boolean validateConnection() throws Exception;
+
+	/**
+	 * Get the store of JDBC queries associated with the datasouce
+	 *
+	 * @return store of JDBC queries associated with the datasouce
+	 */
+	JDBCQueriesStore getJdbcQueriesStore();
+
+	/**
+	 * Clear the store of JDBC queries from all the entries it currently contains
+	 */
+	void clearJdbcQueriesStore();
 }

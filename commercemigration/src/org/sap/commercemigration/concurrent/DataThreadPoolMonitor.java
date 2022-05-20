@@ -4,9 +4,13 @@
 */
 package org.sap.commercemigration.concurrent;
 
-import org.sap.commercemigration.context.CopyContext;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
-public interface DataWorkerPoolFactory {
-	ThreadPoolTaskExecutor create(CopyContext context);
+public interface DataThreadPoolMonitor {
+	void subscribe(ThreadPoolTaskExecutor executor);
+	void unsubscribe(ThreadPoolTaskExecutor executor);
+
+	int getActiveCount();
+
+	int getMaxPoolSize();
 }

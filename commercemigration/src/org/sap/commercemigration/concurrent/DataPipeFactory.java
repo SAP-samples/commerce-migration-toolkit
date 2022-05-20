@@ -4,9 +4,9 @@
 */
 package org.sap.commercemigration.concurrent;
 
-import org.sap.commercemigration.context.CopyContext;
-
 import javax.annotation.concurrent.ThreadSafe;
+
+import org.sap.commercemigration.context.CopyContext;
 
 @ThreadSafe
 public interface DataPipeFactory<T> {

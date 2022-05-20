@@ -6,8 +6,11 @@ package org.sap.commercemigration.service.impl;
 
 import com.google.common.base.Stopwatch;
 import org.apache.commons.lang3.tuple.Pair;
+import org.sap.commercemigration.DataThreadPoolConfig;
 import org.sap.commercemigration.concurrent.DataPipe;
 import org.sap.commercemigration.concurrent.DataPipeFactory;
+import org.sap.commercemigration.concurrent.DataThreadPoolConfigBuilder;
+import org.sap.commercemigration.concurrent.DataThreadPoolFactory;
 import org.sap.commercemigration.context.CopyContext;
 import org.sap.commercemigration.dataset.DataSet;
 import org.sap.commercemigration.scheduler.DatabaseCopyScheduler;
@@ -17,8 +20,8 @@ import org.sap.commercemigration.strategy.PipeWriterStrategy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
-import org.springframework.core.task.AsyncTaskExecutor;
 import org.springframework.core.task.TaskRejectedException;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.util.backoff.BackOffExecution;
 import org.springframework.util.backoff.ExponentialBackOff;
 
@@ -42,16 +45,16 @@ public class PipeDatabaseMigrationCopyService implements DatabaseMigrationCopySe
 
 	private final DataPipeFactory<DataSet> pipeFactory;
 	private final PipeWriterStrategy<DataSet> writerStrategy;
-	private final AsyncTaskExecutor executor;
+	private final DataThreadPoolFactory dataWriteTaskFactory;
 	private final DatabaseCopyTaskRepository databaseCopyTaskRepository;
 	private final DatabaseCopyScheduler scheduler;
 
 	public PipeDatabaseMigrationCopyService(DataPipeFactory<DataSet> pipeFactory,
-			PipeWriterStrategy<DataSet> writerStrategy, AsyncTaskExecutor executor,
+			PipeWriterStrategy<DataSet> writerStrategy, DataThreadPoolFactory dataWriteTaskFactory,
 			DatabaseCopyTaskRepository databaseCopyTaskRepository, DatabaseCopyScheduler scheduler) {
 		this.pipeFactory = pipeFactory;
 		this.writerStrategy = writerStrategy;
-		this.executor = executor;
+		this.dataWriteTaskFactory = dataWriteTaskFactory;
 		this.databaseCopyTaskRepository = databaseCopyTaskRepository;
 		this.scheduler = scheduler;
 	}
@@ -120,6 +123,9 @@ public class PipeDatabaseMigrationCopyService implements DatabaseMigrationCopySe
 		List<Pair<CopyContext.DataCopyItem, Future<Boolean>>> runningTasks = new ArrayList<>();
 		BackOffExecution backoff = null;
 		CopyContext.DataCopyItem previousReject = null;
+		DataThreadPoolConfig poolConfig = new DataThreadPoolConfigBuilder(context.getMigrationContext())
+				.withPoolSize(context.getMigrationContext().getMaxParallelTableCopy()).build();
+		ThreadPoolTaskExecutor executor = dataWriteTaskFactory.create(context, poolConfig);
 		try {
 			while (tasksToSchedule.peekFirst() != null) {
 				Pair<CopyContext.DataCopyItem, Callable<Boolean>> task = tasksToSchedule.removeFirst();
@@ -141,6 +147,8 @@ public class PipeDatabaseMigrationCopyService implements DatabaseMigrationCopySe
 
 				}
 			}
+			// all tasks submitted, graceful shutdown
+			dataWriteTaskFactory.destroy(executor);
 		} catch (Exception e) {
 			try {
 				scheduler.abort(context);

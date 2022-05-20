@@ -145,4 +145,8 @@
         <property name="lowerColumnBoundary" type="Object" />
         <property name="upperColumnBoundary" type="Object" />
     </bean>
+    
+    <bean class="org.sap.commercemigration.DataThreadPoolConfig">
+        <property name="poolSize" type="Integer" />
+    </bean>
 </beans>

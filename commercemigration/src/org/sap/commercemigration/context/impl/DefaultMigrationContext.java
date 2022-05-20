@@ -4,14 +4,6 @@
 */
 package org.sap.commercemigration.context.impl;
 
-import org.apache.commons.configuration.Configuration;
-import org.apache.commons.lang.StringUtils;
-import org.sap.commercemigration.constants.CommercemigrationConstants;
-import org.sap.commercemigration.context.MigrationContext;
-import org.sap.commercemigration.profile.DataSourceConfiguration;
-import org.sap.commercemigration.repository.DataRepository;
-import org.sap.commercemigration.repository.impl.DataRepositoryFactory;
-
 import java.time.Instant;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
@@ -25,24 +17,37 @@ import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
 
+import org.apache.commons.configuration.Configuration;
+import org.apache.commons.lang.StringUtils;
+import org.sap.commercemigration.constants.CommercemigrationConstants;
+import org.sap.commercemigration.context.MigrationContext;
+import org.sap.commercemigration.profile.DataSourceConfiguration;
+import org.sap.commercemigration.profile.DataSourceConfigurationFactory;
+import org.sap.commercemigration.repository.DataRepository;
+import org.sap.commercemigration.repository.impl.DataRepositoryFactory;
+
 public class DefaultMigrationContext implements MigrationContext {
 	private final DataRepository dataSourceRepository;
 	private final DataRepository dataTargetRepository;
 
 	private final Configuration configuration;
 
-	public DefaultMigrationContext(final DataSourceConfiguration sourceDataSourceConfiguration,
-			final DataSourceConfiguration targetDataSourceConfiguration,
-			final DataRepositoryFactory dataRepositoryFactory, final Configuration configuration) throws Exception {
-		this.dataSourceRepository = dataRepositoryFactory.create(sourceDataSourceConfiguration);
-		this.dataTargetRepository = dataRepositoryFactory.create(targetDataSourceConfiguration);
+	public DefaultMigrationContext(final DataRepositoryFactory dataRepositoryFactory,
+			final DataSourceConfigurationFactory dataSourceConfigurationFactory, final Configuration configuration)
+			throws Exception {
 		this.configuration = configuration;
 		ensureDefaultLocale(configuration);
+		final Set<DataSourceConfiguration> inputDataSourceConfigurations = getInputProfiles().stream()
+				.map(p -> dataSourceConfigurationFactory.create(p)).collect(Collectors.toSet());
+		final Set<DataSourceConfiguration> outputDataSourceConfigurations = getOutputProfiles().stream()
+				.map(p -> dataSourceConfigurationFactory.create(p)).collect(Collectors.toSet());
+		this.dataSourceRepository = dataRepositoryFactory.create(this, inputDataSourceConfigurations);
+		this.dataTargetRepository = dataRepositoryFactory.create(this, outputDataSourceConfigurations);
 	}
 
-	private void ensureDefaultLocale(Configuration configuration) {
-		String localeProperty = configuration.getString(CommercemigrationConstants.MIGRATION_LOCALE_DEFAULT);
-		Locale locale = Locale.forLanguageTag(localeProperty);
+	private void ensureDefaultLocale(final Configuration configuration) {
+		final String localeProperty = configuration.getString(CommercemigrationConstants.MIGRATION_LOCALE_DEFAULT);
+		final Locale locale = Locale.forLanguageTag(localeProperty);
 		Locale.setDefault(locale);
 	}
 
@@ -192,7 +197,7 @@ public class DefaultMigrationContext implements MigrationContext {
 
 	@Override
 	public Instant getIncrementalTimestamp() {
-		String timeStamp = getStringProperty(CommercemigrationConstants.MIGRATION_DATA_INCREMENTAL_TIMESTAMP);
+		final String timeStamp = getStringProperty(CommercemigrationConstants.MIGRATION_DATA_INCREMENTAL_TIMESTAMP);
 		if (StringUtils.isEmpty(timeStamp)) {
 			return null;
 		}
@@ -210,8 +215,8 @@ public class DefaultMigrationContext implements MigrationContext {
 	}
 
 	@Override
-	public String getMigrationReportConnectionString() {
-		return getStringProperty(CommercemigrationConstants.MIGRATION_DATA_REPORT_CONNECTIONSTRING);
+	public String getFileStorageConnectionString() {
+		return getStringProperty(CommercemigrationConstants.MIGRATION_FILE_STORAGE_CONNECTIONSTRING);
 	}
 
 	@Override
@@ -222,6 +227,36 @@ public class DefaultMigrationContext implements MigrationContext {
 	@Override
 	public boolean isSchedulerResumeEnabled() {
 		return getBooleanProperty(CommercemigrationConstants.MIGRATION_SCHEDULER_RESUME_ENABLED);
+	}
+
+	@Override
+	public boolean isLogSql() {
+		return getBooleanProperty(CommercemigrationConstants.MIGRATION_LOG_SQL);
+	}
+
+	@Override
+	public boolean isLogSqlParamsForSource() {
+		return getBooleanProperty(CommercemigrationConstants.MIGRATION_LOG_SQL_PARAMS_SOURCE);
+	}
+
+	@Override
+	public int getSqlStoreMemoryFlushThreshold() {
+		return getNumericProperty(CommercemigrationConstants.MIGRATION_SQL_STORE_FLUSH_THRESHOLD);
+	}
+
+	@Override
+	public String getFileStorageContainerName() {
+		return getStringProperty(CommercemigrationConstants.MIGRATION_FILE_STORAGE_CONTAINER_NAME);
+	}
+
+	@Override
+	public Set<String> getInputProfiles() {
+		return getListProperty(CommercemigrationConstants.MIGRATION_INPUT_PROFILES);
+	}
+
+	@Override
+	public Set<String> getOutputProfiles() {
+		return getListProperty(CommercemigrationConstants.MIGRATION_OUTPUT_PROFILES);
 	}
 
 	@Override
@@ -279,5 +314,4 @@ public class DefaultMigrationContext implements MigrationContext {
 		}
 		return map;
 	}
-
 }

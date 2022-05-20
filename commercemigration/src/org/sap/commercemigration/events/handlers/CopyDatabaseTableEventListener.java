@@ -7,7 +7,6 @@ package org.sap.commercemigration.events.handlers;
 import de.hybris.platform.servicelayer.cluster.ClusterService;
 import de.hybris.platform.servicelayer.config.ConfigurationService;
 import de.hybris.platform.servicelayer.event.impl.AbstractEventListener;
-import org.sap.commercemigration.constants.CommercemigrationConstants;
 import org.sap.commercemigration.context.CopyContext;
 import org.sap.commercemigration.context.MigrationContext;
 import org.sap.commercemigration.events.CopyDatabaseTableEvent;
@@ -19,7 +18,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 
+import java.io.Serializable;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -47,11 +48,7 @@ public class CopyDatabaseTableEventListener extends AbstractEventListener<CopyDa
 	@Override
 	protected void onEvent(final CopyDatabaseTableEvent event) {
 		final String migrationId = event.getMigrationId();
-		// enable resume either by property on this node or by value passed by the event
-		boolean resumeEnabled = Boolean.logicalOr(migrationContext.isSchedulerResumeEnabled(),
-				event.isResumeUnfinishedMigration());
-		configurationService.getConfiguration().setProperty(
-				CommercemigrationConstants.MIGRATION_SCHEDULER_RESUME_ENABLED, String.valueOf(resumeEnabled));
+		processPropertyOverrides(event.getPropertyOverrideMap());
 		LOG.debug("Starting Migration with Id {}", migrationId);
 		try (MDC.MDCCloseable ignored = MDC.putCloseable(MDC_MIGRATIONID, migrationId);
 				MDC.MDCCloseable ignored2 = MDC.putCloseable(MDC_CLUSTERID,
@@ -69,6 +66,12 @@ public class CopyDatabaseTableEventListener extends AbstractEventListener<CopyDa
 		} catch (Exception e) {
 			throw new RuntimeException(e);
 		}
+	}
+
+	private void processPropertyOverrides(Map<String, Serializable> propertyOverrideMap) {
+		propertyOverrideMap.forEach((key, value) -> {
+			configurationService.getConfiguration().setProperty(key, String.valueOf(value));
+		});
 	}
 
 	public void setDatabaseMigrationCopyService(final DatabaseMigrationCopyService databaseMigrationCopyService) {

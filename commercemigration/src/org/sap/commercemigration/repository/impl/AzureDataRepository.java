@@ -12,6 +12,7 @@ import org.apache.ddlutils.Platform;
 import org.sap.commercemigration.MarkersQueryDefinition;
 import org.sap.commercemigration.OffsetQueryDefinition;
 import org.sap.commercemigration.SeekQueryDefinition;
+import org.sap.commercemigration.context.MigrationContext;
 import org.sap.commercemigration.profile.DataSourceConfiguration;
 import org.sap.commercemigration.repository.platform.MigrationHybrisMSSqlPlatform;
 import org.sap.commercemigration.service.DatabaseMigrationDataTypeMapperService;
@@ -29,9 +30,9 @@ public class AzureDataRepository extends AbstractDataRepository {
 
 	private static final Logger LOG = LoggerFactory.getLogger(AzureDataRepository.class);
 
-	public AzureDataRepository(DataSourceConfiguration dataSourceConfiguration,
+	public AzureDataRepository(MigrationContext migrationContext, DataSourceConfiguration dataSourceConfiguration,
 			DatabaseMigrationDataTypeMapperService databaseMigrationDataTypeMapperService) {
-		super(dataSourceConfiguration, databaseMigrationDataTypeMapperService);
+		super(migrationContext, dataSourceConfiguration, databaseMigrationDataTypeMapperService);
 	}
 
 	@Override

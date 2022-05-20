@@ -5,6 +5,7 @@
 package org.sap.commercemigration.setup;
 
 import de.hybris.platform.media.services.MediaStorageInitializer;
+import org.sap.commercemigration.context.LaunchOptions;
 import org.sap.commercemigration.context.MigrationContext;
 import org.sap.commercemigration.service.DatabaseMigrationService;
 import org.slf4j.Logger;
@@ -34,7 +35,7 @@ public class InitUpdateProcessTrigger implements MediaStorageInitializer {
 		try {
 			if (migrationContext.isMigrationTriggeredByUpdateProcess()) {
 				LOG.info("Starting data migration ...");
-				String migrationId = databaseMigrationService.startMigration(migrationContext);
+				String migrationId = databaseMigrationService.startMigration(migrationContext, LaunchOptions.NONE);
 				databaseMigrationService.waitForFinish(migrationContext, migrationId);
 				// note: further update activities not stopped here -> should we?
 			}

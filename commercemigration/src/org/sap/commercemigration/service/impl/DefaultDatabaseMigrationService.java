@@ -7,6 +7,7 @@ package org.sap.commercemigration.service.impl;
 import org.sap.commercemigration.MigrationReport;
 import org.sap.commercemigration.MigrationStatus;
 import org.sap.commercemigration.context.CopyContext;
+import org.sap.commercemigration.context.LaunchOptions;
 import org.sap.commercemigration.context.MigrationContext;
 import org.sap.commercemigration.context.validation.MigrationContextValidator;
 import org.sap.commercemigration.performance.PerformanceProfiler;
@@ -33,11 +34,15 @@ public class DefaultDatabaseMigrationService implements DatabaseMigrationService
 	private MigrationContextValidator migrationContextValidator;
 
 	@Override
-	public String startMigration(final MigrationContext context) throws Exception {
+	public String startMigration(final MigrationContext context, LaunchOptions launchOptions) throws Exception {
 		migrationContextValidator.validateContext(context);
 
 		// TODO: running migration check
 		performanceProfiler.reset();
+		if (context.isLogSql()) {
+			context.getDataSourceRepository().clearJdbcQueriesStore();
+			context.getDataTargetRepository().clearJdbcQueriesStore();
+		}
 
 		final String migrationId = UUID.randomUUID().toString();
 
@@ -48,14 +53,17 @@ public class DefaultDatabaseMigrationService implements DatabaseMigrationService
 		}
 
 		CopyContext copyContext = buildCopyContext(context, migrationId);
+		copyContext.getPropertyOverrideMap().putAll(launchOptions.getPropertyOverrideMap());
 		databaseCopyScheduler.schedule(copyContext);
 
 		return migrationId;
 	}
 
 	@Override
-	public void resumeUnfinishedMigration(MigrationContext context, String migrationID) throws Exception {
+	public void resumeUnfinishedMigration(MigrationContext context, LaunchOptions launchOptions, String migrationID)
+			throws Exception {
 		CopyContext copyContext = buildIdContext(context, migrationID);
+		copyContext.getPropertyOverrideMap().putAll(launchOptions.getPropertyOverrideMap());
 		databaseCopyScheduler.resumeUnfinishedItems(copyContext);
 	}
 

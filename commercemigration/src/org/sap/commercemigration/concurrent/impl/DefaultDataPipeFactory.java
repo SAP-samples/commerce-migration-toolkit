@@ -7,14 +7,16 @@ package org.sap.commercemigration.concurrent.impl;
 import com.google.common.collect.Lists;
 import org.apache.commons.lang3.tuple.Pair;
 import org.fest.util.Collections;
+import org.sap.commercemigration.DataThreadPoolConfig;
 import org.sap.commercemigration.MarkersQueryDefinition;
 import org.sap.commercemigration.adapter.DataRepositoryAdapter;
 import org.sap.commercemigration.adapter.impl.ContextualDataRepositoryAdapter;
 import org.sap.commercemigration.concurrent.DataCopyMethod;
 import org.sap.commercemigration.concurrent.DataPipe;
 import org.sap.commercemigration.concurrent.DataPipeFactory;
+import org.sap.commercemigration.concurrent.DataThreadPoolConfigBuilder;
 import org.sap.commercemigration.concurrent.DataWorkerExecutor;
-import org.sap.commercemigration.concurrent.DataWorkerPoolFactory;
+import org.sap.commercemigration.concurrent.DataThreadPoolFactory;
 import org.sap.commercemigration.concurrent.MaybeFinished;
 import org.sap.commercemigration.concurrent.impl.task.BatchMarkerDataReaderTask;
 import org.sap.commercemigration.concurrent.impl.task.BatchOffsetDataReaderTask;
@@ -46,10 +48,10 @@ public class DefaultDataPipeFactory implements DataPipeFactory<DataSet> {
 	private final DatabaseCopyTaskRepository taskRepository;
 	private final DatabaseCopyScheduler scheduler;
 	private final AsyncTaskExecutor executor;
-	private final DataWorkerPoolFactory dataReadWorkerPoolFactory;
+	private final DataThreadPoolFactory dataReadWorkerPoolFactory;
 
 	public DefaultDataPipeFactory(DatabaseCopyScheduler scheduler, DatabaseCopyTaskRepository taskRepository,
-			AsyncTaskExecutor executor, DataWorkerPoolFactory dataReadWorkerPoolFactory) {
+			AsyncTaskExecutor executor, DataThreadPoolFactory dataReadWorkerPoolFactory) {
 		this.scheduler = scheduler;
 		this.taskRepository = taskRepository;
 		this.executor = executor;
@@ -62,7 +64,9 @@ public class DefaultDataPipeFactory implements DataPipeFactory<DataSet> {
 		int dataPipeCapacity = context.getMigrationContext().getDataPipeCapacity();
 		DataPipe<DataSet> pipe = new DefaultDataPipe<>(scheduler, taskRepository, context, item, dataPipeTimeout,
 				dataPipeCapacity);
-		ThreadPoolTaskExecutor taskExecutor = dataReadWorkerPoolFactory.create(context);
+		DataThreadPoolConfig threadPoolConfig = new DataThreadPoolConfigBuilder(context.getMigrationContext())
+				.withPoolSize(context.getMigrationContext().getMaxParallelReaderWorkers()).build();
+		final ThreadPoolTaskExecutor taskExecutor = dataReadWorkerPoolFactory.create(context, threadPoolConfig);
 		DataWorkerExecutor<Boolean> workerExecutor = new DefaultDataWorkerExecutor<>(taskExecutor);
 		try {
 			executor.submit(() -> {
@@ -82,7 +86,7 @@ public class DefaultDataPipeFactory implements DataPipeFactory<DataSet> {
 					}
 				} finally {
 					if (taskExecutor != null) {
-						taskExecutor.shutdown();
+						dataReadWorkerPoolFactory.destroy(taskExecutor);
 					}
 				}
 			});

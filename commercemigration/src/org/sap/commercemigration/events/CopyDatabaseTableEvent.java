@@ -4,20 +4,26 @@
 */
 package org.sap.commercemigration.events;
 
+import java.io.Serializable;
+import java.util.Map;
+
 /**
  * Cluster Event to notify a Cluster to start the copy process
  */
 public class CopyDatabaseTableEvent extends CopyEvent {
 
-	private final boolean resumeUnfinishedMigration;
+	/**
+	 * contains property value updates that should be populated in the cluster
+	 */
+	private final Map<String, Serializable> propertyOverrideMap;
 
 	public CopyDatabaseTableEvent(final Integer sourceNodeId, final String migrationId,
-			boolean resumeUnfinishedMigration) {
+			Map<String, Serializable> propertyOverrideMap) {
 		super(sourceNodeId, migrationId);
-		this.resumeUnfinishedMigration = resumeUnfinishedMigration;
+		this.propertyOverrideMap = propertyOverrideMap;
 	}
 
-	public boolean isResumeUnfinishedMigration() {
-		return resumeUnfinishedMigration;
+	public Map<String, Serializable> getPropertyOverrideMap() {
+		return propertyOverrideMap;
 	}
 }

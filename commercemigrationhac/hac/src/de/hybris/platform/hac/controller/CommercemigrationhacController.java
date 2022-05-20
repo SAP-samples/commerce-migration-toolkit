@@ -5,10 +5,12 @@
 package de.hybris.platform.hac.controller;
 
 import com.google.common.base.Joiner;
+import com.google.common.collect.Lists;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.microsoft.azure.storage.blob.CloudBlockBlob;
-import de.hybris.platform.commercemigrationhac.data.CopyConfigDTO;
+import de.hybris.platform.commercemigrationhac.data.ConfigPanelDTO;
+import de.hybris.platform.commercemigrationhac.data.ConfigPanelItemDTO;
 import de.hybris.platform.commercemigrationhac.data.DataSourceConfigurationData;
 import de.hybris.platform.commercemigrationhac.data.DataSourceValidationResultData;
 import de.hybris.platform.commercemigrationhac.data.MetricData;
@@ -21,10 +23,14 @@ import de.hybris.platform.servicelayer.user.UserService;
 import org.apache.commons.lang.BooleanUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.exception.ExceptionUtils;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.logging.log4j.util.Strings;
+import org.sap.commercemigration.MigrationReport;
 import org.sap.commercemigration.MigrationStatus;
 import org.sap.commercemigration.constants.CommercemigrationConstants;
+import org.sap.commercemigration.context.LaunchOptions;
 import org.sap.commercemigration.context.MigrationContext;
+import org.sap.commercemigration.logging.JDBCQueriesStore;
 import org.sap.commercemigration.repository.DataRepository;
 import org.sap.commercemigration.service.DatabaseMigrationService;
 import org.sap.commercemigration.service.DatabaseSchemaDifferenceService;
@@ -55,6 +61,7 @@ import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletResponse;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
+import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
 import java.time.Instant;
@@ -77,6 +84,7 @@ import java.util.stream.Collectors;
 public class CommercemigrationhacController {
 
 	private static final String DEFAULT_EMPTY_VAL = "[NOT SET]";
+	private static final boolean DEFAULT_BOOLEAN_VAL = false;
 	private static final Logger LOG = LoggerFactory.getLogger(CommercemigrationhacController.class);
 	private static final SimpleDateFormat DATE_TIME_FORMATTER = new SimpleDateFormat("YYYY-MM-dd HH:mm",
 			Locale.ENGLISH);
@@ -140,6 +148,9 @@ public class CommercemigrationhacController {
 						DEFAULT_EMPTY_VAL));
 		model.addAttribute("tgtActualPrefix", StringUtils.defaultIfEmpty(
 				configurationService.getConfiguration().getString("db.tableprefix"), DEFAULT_EMPTY_VAL));
+		model.addAttribute("isLogSql",
+				BooleanUtils.toBooleanDefaultIfNull(migrationContext.isLogSql(), DEFAULT_BOOLEAN_VAL));
+		model.addAttribute("isSchedulerResumeEnabled", migrationContext.isSchedulerResumeEnabled());
 		return "dataCopy";
 	}
 
@@ -173,10 +184,7 @@ public class CommercemigrationhacController {
 			dataSourceConfigurationData.setCatalog(dataRepository.getDataSourceConfiguration().getCatalog());
 			dataSourceConfigurationData.setSchema(dataRepository.getDataSourceConfiguration().getSchema());
 			dataSourceConfigurationData.setMaxActive(dataRepository.getDataSourceConfiguration().getMaxActive());
-			dataSourceConfigurationData.setMaxIdle(dataRepository.getDataSourceConfiguration().getMaxIdle());
 			dataSourceConfigurationData.setMinIdle(dataRepository.getDataSourceConfiguration().getMinIdle());
-			dataSourceConfigurationData
-					.setRemoveAbandoned(dataRepository.getDataSourceConfiguration().isRemoveAbandoned());
 		}
 
 		return dataSourceConfigurationData;
@@ -307,16 +315,20 @@ public class CommercemigrationhacController {
 
 	@RequestMapping(value = "/copyData", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
 	@ResponseBody
-	public MigrationStatus copyData(CopyConfigDTO copyConfig,
+	public MigrationStatus copyData(@RequestParam Map<String, Serializable> copyConfig,
 			@CookieValue(value = COOKIE_MIGRATION_ID, required = false) String migrationId,
 			HttpServletResponse response) throws Exception {
 		String currentMigrationId = migrationId;
-		if (BooleanUtils.isTrue(copyConfig.getResumeUnfinishedItems()) && StringUtils.isNotEmpty(currentMigrationId)) {
+		LaunchOptions launchOptions = new LaunchOptions();
+		launchOptions.getPropertyOverrideMap().putAll(copyConfig);
+		Serializable isResume = copyConfig.getOrDefault(CommercemigrationConstants.MIGRATION_SCHEDULER_RESUME_ENABLED,
+				false);
+		if (BooleanUtils.toBoolean(isResume.toString()) && StringUtils.isNotEmpty(currentMigrationId)) {
 			logAction("Resume data migration executed");
-			databaseMigrationService.resumeUnfinishedMigration(migrationContext, migrationId);
+			databaseMigrationService.resumeUnfinishedMigration(migrationContext, launchOptions, migrationId);
 		} else {
 			logAction("Start data migration executed");
-			currentMigrationId = databaseMigrationService.startMigration(migrationContext);
+			currentMigrationId = databaseMigrationService.startMigration(migrationContext, launchOptions);
 			response.addCookie(new Cookie(COOKIE_MIGRATION_ID, currentMigrationId));
 		}
 		return databaseMigrationService.getMigrationState(migrationContext, currentMigrationId);
@@ -379,10 +391,35 @@ public class CommercemigrationhacController {
 	public @ResponseBody byte[] getCopyReport(@RequestParam String migrationId, HttpServletResponse response)
 			throws Exception {
 		logAction("Download migration report button clicked");
+		MigrationReport migrationReport = databaseMigrationService.getMigrationReport(migrationContext, migrationId);
+		Gson gson = new GsonBuilder().disableHtmlEscaping().setPrettyPrinting().create();
+		String migrationReportAsJson = gson.toJson(migrationReport);
 		response.setHeader("Content-Disposition", "attachment; filename=migration-report.json");
-		Gson gson = new GsonBuilder().setPrettyPrinting().create();
-		String json = gson.toJson(databaseMigrationService.getMigrationReport(migrationContext, migrationId));
-		return json.getBytes(StandardCharsets.UTF_8.name());
+		return migrationReportAsJson.getBytes(StandardCharsets.UTF_8.name());
+	}
+
+	@GetMapping(value = "/dataSourceJdbcReport", produces = MediaType.APPLICATION_OCTET_STREAM_VALUE)
+	public @ResponseBody byte[] getDataSourceJdbcReport(@RequestParam String migrationId,
+			HttpServletResponse response) {
+		logAction("Download data source jdbc queries report button clicked");
+		JDBCQueriesStore sourceEntriesStore = migrationContext.getDataSourceRepository().getJdbcQueriesStore();
+		return getLogFile(migrationId, response, sourceEntriesStore);
+	}
+
+	@GetMapping(value = "/dataTargetJdbcReport", produces = MediaType.APPLICATION_OCTET_STREAM_VALUE)
+	public @ResponseBody byte[] getDataTargetJdbcReport(@RequestParam String migrationId,
+			HttpServletResponse response) {
+		logAction("Download data target jdbc queries report button clicked");
+		JDBCQueriesStore targetEntriesStore = migrationContext.getDataTargetRepository().getJdbcQueriesStore();
+		return getLogFile(migrationId, response, targetEntriesStore);
+	}
+
+	private byte[] getLogFile(String migrationId, HttpServletResponse response, JDBCQueriesStore jdbcQueriesStore) {
+		Pair<byte[], String> logFilePair = jdbcQueriesStore.getLogFile(migrationId);
+		final byte[] logFileBytes = logFilePair.getLeft();
+		final String logFileName = logFilePair.getRight();
+		response.setHeader("Content-Disposition", "attachment; filename=" + logFileName);
+		return logFileBytes;
 	}
 
 	@RequestMapping(value = "/metrics", method = RequestMethod.GET)
@@ -443,6 +480,44 @@ public class CommercemigrationhacController {
 	public String reports(final Model model) {
 		logAction("Migration reports tab clicked");
 		return "migrationReports";
+	}
+
+	@RequestMapping(value = {"/configPanel"}, method = {org.springframework.web.bind.annotation.RequestMethod.GET})
+	public @ResponseBody ConfigPanelDTO configPanel(final Model model) {
+		ConfigPanelDTO configPanelDTO = new ConfigPanelDTO();
+		ConfigPanelItemDTO resume = createConfigItem("resumeUnfinishedItems", "Resume Mode",
+				"If enabled, resumes next migration from where it was stopped", Boolean.class,
+				migrationContext.isSchedulerResumeEnabled(), "true",
+				CommercemigrationConstants.MIGRATION_SCHEDULER_RESUME_ENABLED);
+		ConfigPanelItemDTO parTables = createConfigItem("maxParallelTableCopy", "Parallel Tables",
+				"Number of tables to be copied in parallel", Integer.class, migrationContext.getMaxParallelTableCopy(),
+				"true", CommercemigrationConstants.MIGRATION_DATA_MAXPRALLELTABLECOPY);
+		ConfigPanelItemDTO maxReader = createConfigItem("maxReaderWorkers", "Reader Workers",
+				"Number of reader workers to be used for each table", Integer.class,
+				migrationContext.getMaxParallelReaderWorkers(), "true",
+				CommercemigrationConstants.MIGRATION_DATA_WORKERS_READER_MAXTASKS);
+		ConfigPanelItemDTO maxWriter = createConfigItem("maxWriterWorkers", "Writer Workers",
+				"Number of writer workers to be used for each table", Integer.class,
+				migrationContext.getMaxParallelWriterWorkers(), "true",
+				CommercemigrationConstants.MIGRATION_DATA_WORKERS_WRITER_MAXTASKS);
+		ConfigPanelItemDTO batchSize = createConfigItem("batchSize", "Batch Size", "Batch size used to query data",
+				Integer.class, migrationContext.getReaderBatchSize(), "${!getValueByItemId('resumeUnfinishedItems')}",
+				CommercemigrationConstants.MIGRATION_DATA_READER_BATCHSIZE);
+		configPanelDTO.setItems(Lists.newArrayList(resume, parTables, maxReader, maxWriter, batchSize));
+		return configPanelDTO;
+	}
+
+	private ConfigPanelItemDTO createConfigItem(String id, String name, String description, Class type,
+			Object initialValue, String renderIf, String propertyBinding) {
+		ConfigPanelItemDTO configPanelItemDTO = new ConfigPanelItemDTO();
+		configPanelItemDTO.setId(id);
+		configPanelItemDTO.setName(name);
+		configPanelItemDTO.setDescription(description);
+		configPanelItemDTO.setType(type);
+		configPanelItemDTO.setInitialValue(initialValue);
+		configPanelItemDTO.setRenderIf(renderIf);
+		configPanelItemDTO.setPropertyBinding(propertyBinding);
+		return configPanelItemDTO;
 	}
 
 }

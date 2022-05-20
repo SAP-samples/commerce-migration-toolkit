@@ -16,12 +16,15 @@ import org.sap.commercemigration.OffsetQueryDefinition;
 import org.sap.commercemigration.SeekQueryDefinition;
 import org.sap.commercemigration.TypeSystemTable;
 import org.sap.commercemigration.constants.CommercemigrationConstants;
+import org.sap.commercemigration.context.MigrationContext;
 import org.sap.commercemigration.dataset.DataColumn;
 import org.sap.commercemigration.dataset.DataSet;
 import org.sap.commercemigration.dataset.impl.DefaultDataColumn;
 import org.sap.commercemigration.dataset.impl.DefaultDataSet;
 import org.sap.commercemigration.datasource.MigrationDataSourceFactory;
 import org.sap.commercemigration.datasource.impl.DefaultMigrationDataSourceFactory;
+import org.sap.commercemigration.logging.JDBCQueriesStore;
+import org.sap.commercemigration.logging.LoggingConnectionWrapper;
 import org.sap.commercemigration.profile.DataSourceConfiguration;
 import org.sap.commercemigration.repository.DataRepository;
 import org.sap.commercemigration.service.DatabaseMigrationDataTypeMapperService;
@@ -57,25 +60,32 @@ public abstract class AbstractDataRepository implements DataRepository {
 
 	private static final Logger LOG = LoggerFactory.getLogger(AbstractDataRepository.class);
 
+	// one store per data repository
+	private final JDBCQueriesStore jdbcQueriesStore;
 	private final Map<String, DataSource> dataSourceHolder = new ConcurrentHashMap<>();
 
 	private final DataSourceConfiguration dataSourceConfiguration;
 	private final MigrationDataSourceFactory migrationDataSourceFactory;
 	private final DatabaseMigrationDataTypeMapperService databaseMigrationDataTypeMapperService;
+	private final MigrationContext migrationContext;
 	private Platform platform;
 	private Database database;
 
-	protected AbstractDataRepository(DataSourceConfiguration dataSourceConfiguration,
+	protected AbstractDataRepository(MigrationContext migrationContext, DataSourceConfiguration dataSourceConfiguration,
 			DatabaseMigrationDataTypeMapperService databaseMigrationDataTypeMapperService) {
-		this(dataSourceConfiguration, databaseMigrationDataTypeMapperService, new DefaultMigrationDataSourceFactory());
+		this(migrationContext, dataSourceConfiguration, new DefaultMigrationDataSourceFactory(),
+				databaseMigrationDataTypeMapperService);
 	}
 
-	protected AbstractDataRepository(DataSourceConfiguration dataSourceConfiguration,
-			DatabaseMigrationDataTypeMapperService databaseMigrationDataTypeMapperService,
-			MigrationDataSourceFactory migrationDataSourceFactory) {
+	protected AbstractDataRepository(MigrationContext migrationContext, DataSourceConfiguration dataSourceConfiguration,
+			MigrationDataSourceFactory migrationDataSourceFactory,
+			DatabaseMigrationDataTypeMapperService databaseMigrationDataTypeMapperService) {
+		this.migrationContext = migrationContext;
 		this.dataSourceConfiguration = dataSourceConfiguration;
 		this.migrationDataSourceFactory = migrationDataSourceFactory;
 		this.databaseMigrationDataTypeMapperService = databaseMigrationDataTypeMapperService;
+		this.jdbcQueriesStore = new JDBCQueriesStore(getDataSourceConfiguration().getConnectionString(),
+				migrationContext, migrationContext.getInputProfiles().contains(dataSourceConfiguration.getProfile()));
 	}
 
 	@Override
@@ -90,7 +100,13 @@ public abstract class AbstractDataRepository implements DataRepository {
 	}
 
 	public Connection getConnection() throws SQLException {
-		return getDataSource().getConnection();
+		// Only wrap with the logging behavior if logSql is true
+		if (migrationContext.isLogSql()) {
+			boolean logParameters = jdbcQueriesStore.isSourceDB() && migrationContext.isLogSqlParamsForSource();
+			return new LoggingConnectionWrapper(getDataSource().getConnection(), jdbcQueriesStore, logParameters);
+		} else {
+			return getDataSource().getConnection();
+		}
 	}
 
 	@Override
@@ -597,4 +613,14 @@ public abstract class AbstractDataRepository implements DataRepository {
 		}
 	}
 
+	@Override
+	public JDBCQueriesStore getJdbcQueriesStore() {
+		// the store will have no entries if dataSourceConfiguration.isLogSql() is false
+		return jdbcQueriesStore;
+	}
+
+	@Override
+	public void clearJdbcQueriesStore() {
+		jdbcQueriesStore.clear();
+	}
 }

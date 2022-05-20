@@ -86,7 +86,8 @@ public class CustomClusterDatabaseCopyScheduler implements DatabaseCopyScheduler
 				}
 			}
 			startMonitorThread(context);
-			final CopyDatabaseTableEvent event = new CopyDatabaseTableEvent(ownNodeId, context.getMigrationId(), false);
+			final CopyDatabaseTableEvent event = new CopyDatabaseTableEvent(ownNodeId, context.getMigrationId(),
+					context.getPropertyOverrideMap());
 			eventService.publishEvent(event);
 		}
 	}
@@ -102,7 +103,8 @@ public class CustomClusterDatabaseCopyScheduler implements DatabaseCopyScheduler
 		}
 		databaseCopyTaskRepository.resetMigration(copyContext);
 		startMonitorThread(copyContext);
-		final CopyDatabaseTableEvent event = new CopyDatabaseTableEvent(ownNodeId, copyContext.getMigrationId(), true);
+		final CopyDatabaseTableEvent event = new CopyDatabaseTableEvent(ownNodeId, copyContext.getMigrationId(),
+				copyContext.getPropertyOverrideMap());
 		eventService.publishEvent(event);
 	}
 

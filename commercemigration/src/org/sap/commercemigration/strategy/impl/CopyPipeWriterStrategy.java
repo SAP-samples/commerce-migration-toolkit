@@ -4,9 +4,11 @@
 */
 package org.sap.commercemigration.strategy.impl;
 
+import org.sap.commercemigration.DataThreadPoolConfig;
 import org.sap.commercemigration.concurrent.DataPipe;
+import org.sap.commercemigration.concurrent.DataThreadPoolConfigBuilder;
 import org.sap.commercemigration.concurrent.DataWorkerExecutor;
-import org.sap.commercemigration.concurrent.DataWorkerPoolFactory;
+import org.sap.commercemigration.concurrent.DataThreadPoolFactory;
 import org.sap.commercemigration.concurrent.MaybeFinished;
 import org.sap.commercemigration.concurrent.impl.task.RetriableTask;
 import org.sap.commercemigration.concurrent.impl.DefaultDataWorkerExecutor;
@@ -38,10 +40,10 @@ public class CopyPipeWriterStrategy implements PipeWriterStrategy<DataSet> {
 
 	private final DatabaseCopyTaskRepository taskRepository;
 
-	private final DataWorkerPoolFactory dataWriteWorkerPoolFactory;
+	private final DataThreadPoolFactory dataWriteWorkerPoolFactory;
 
 	public CopyPipeWriterStrategy(DatabaseCopyTaskRepository taskRepository,
-			DataWorkerPoolFactory dataWriteWorkerPoolFactory) {
+			DataThreadPoolFactory dataWriteWorkerPoolFactory) {
 		this.taskRepository = taskRepository;
 		this.dataWriteWorkerPoolFactory = dataWriteWorkerPoolFactory;
 	}
@@ -82,7 +84,9 @@ public class CopyPipeWriterStrategy implements PipeWriterStrategy<DataSet> {
 			throw new IllegalStateException(
 					String.format("%s: source has no columns or all columns excluded", item.getPipelineName()));
 		}
-		ThreadPoolTaskExecutor taskExecutor = dataWriteWorkerPoolFactory.create(context);
+		DataThreadPoolConfig threadPoolConfig = new DataThreadPoolConfigBuilder(context.getMigrationContext())
+				.withPoolSize(context.getMigrationContext().getMaxParallelWriterWorkers()).build();
+		ThreadPoolTaskExecutor taskExecutor = dataWriteWorkerPoolFactory.create(context, threadPoolConfig);
 		DataWorkerExecutor<Boolean> workerExecutor = new DefaultDataWorkerExecutor<>(taskExecutor);
 		Connection targetConnection = null;
 		AtomicLong totalCount = new AtomicLong(
@@ -127,7 +131,7 @@ public class CopyPipeWriterStrategy implements PipeWriterStrategy<DataSet> {
 			throw e;
 		} finally {
 			if (taskExecutor != null) {
-				taskExecutor.shutdown();
+				dataWriteWorkerPoolFactory.destroy(taskExecutor);
 			}
 			if (targetConnection != null) {
 				doTurnOnOffIndicesIfNecessary(context, item.getTargetItem(), true);

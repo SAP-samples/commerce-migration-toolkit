@@ -6,6 +6,7 @@ package org.sap.commercemigration.service;
 
 import org.sap.commercemigration.MigrationReport;
 import org.sap.commercemigration.MigrationStatus;
+import org.sap.commercemigration.context.LaunchOptions;
 import org.sap.commercemigration.context.MigrationContext;
 
 import java.time.OffsetDateTime;
@@ -20,23 +21,26 @@ public interface DatabaseMigrationService {
 	 *
 	 * @param context
 	 *            Migration configuration
+	 * @param launchOptions
 	 * @return migrationID of the started migration
 	 * @throws Exception
 	 *             if anything goes wrong during start
 	 */
-	String startMigration(MigrationContext context) throws Exception;
+	String startMigration(MigrationContext context, LaunchOptions launchOptions) throws Exception;
 
 	/**
 	 * Asynchronously resumes the migrations and continuous with unfinished items.
 	 *
 	 * @param context
 	 *            Migration configuration
+	 * @param launchOptions
 	 * @param migrationID
 	 *            The id of the migration to resume
 	 * @throws Exception
 	 *             if anything goes wrong during start
 	 */
-	void resumeUnfinishedMigration(MigrationContext context, String migrationID) throws Exception;
+	void resumeUnfinishedMigration(MigrationContext context, LaunchOptions launchOptions, String migrationID)
+			throws Exception;
 
 	/**
 	 * Stops the the database migration process. The process is stopped on all

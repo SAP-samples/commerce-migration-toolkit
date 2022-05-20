@@ -7,7 +7,7 @@
           media="screen, projection"/>
     <link rel="stylesheet" type="text/css" href="<c:url value="/static/css/chartjs/Chart.min.css"/>"/>
     <link rel="stylesheet" href="<c:url value="/static/css/onoff.css"/>" type="text/css" media="screen, projection" />
-
+    <script type="text/javascript" src="<c:url value="/static/js/configPanel.js"/>"></script>
     <script type="text/javascript" src="<c:url value="/static/js/history.js"/>"></script>
     <script type="text/javascript" src="<c:url value="/static/js/dataCopy.js"/>"></script>
     <script type="text/javascript" src="<c:url value="/static/js/migrationMetrics.js"/>"></script>
@@ -30,15 +30,7 @@
             <button id="buttonCopyData" class="control-button" data-url="<c:url value="/commercemigrationhac/copyData"/>">Start</button>
             <button id="buttonStopCopyData" class="control-button" data-url="<c:url value="/commercemigrationhac/abortCopy"/>">Stop</button>
         </div>
-        <div class="prepend-top clearfix">
-            <p><span class="placeholder">Resume Mode:</span></p>
-            <div class="onoffswitch-large" style="float:left;margin-top:7px">
-                <input type="checkbox" class="onoffswitch-checkbox" id="resumeCheckbox"/>
-                <label class="onoffswitch-label" for="resumeCheckbox">
-                    <div class="onoffswitch-inner" _on="ENABLED" _off="DISABLED"></div>
-                    <div class="onoffswitch-switch-large"></div>
-                </label>
-            </div>
+        <div id="configPanel" class="prepend-top clearfix" data-configPanelDataUrl="<c:url value="/commercemigrationhac/configPanel"/>">
         </div>
         <div class="prepend-top clearfix info marginRight">
             <div class="span-8">
@@ -96,6 +88,20 @@
                 <button id="buttonCopyReport" class="inactive" disabled>Download Report</button>
             </form>
         </div>
+        <c:if test="${isLogSql}">
+            <div class="prepend-top">
+                <form id="formDataSourceReport" method="GET" action="<c:url value="/commercemigrationhac/dataSourceJdbcReport"/>">
+                    <input type="hidden" name="migrationId"/>
+                    <button id="buttonDataSourceReport" class="inactive" disabled>Download Data Source JDBC Report</button>
+                </form>
+            </div>
+            <div class="prepend-top">
+                <form id="formDataTargetReport" method="GET" action="<c:url value="/commercemigrationhac/dataTargetJdbcReport"/>">
+                    <input type="hidden" name="migrationId"/>
+                    <button id="buttonDataTargetReport" class="inactive" disabled>Download Data Target JDBC Report</button>
+                </form>
+            </div>
+        </c:if>
         <div class="prepend-top" style="visibility:hidden">
             <button id="buttonSwitchPrefix" data-url="<c:url value="/commercemigrationhac/switchPrefix?prefix=${tgtMigPrefix}"/>">Switch Synonym to Prefix ${tgtMigPrefix}</button>
         </div>

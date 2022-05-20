@@ -6,6 +6,8 @@ package org.sap.commercemigration.context;
 
 import org.sap.commercemigration.performance.PerformanceProfiler;
 
+import java.io.Serializable;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -21,6 +23,7 @@ public class CopyContext {
 	private MigrationContext migrationContext;
 	private Set<DataCopyItem> copyItems;
 	private PerformanceProfiler performanceProfiler;
+	private final Map<String, Serializable> propertyOverrideMap;
 
 	public CopyContext(String migrationId, MigrationContext migrationContext, Set<DataCopyItem> copyItems,
 			PerformanceProfiler performanceProfiler) {
@@ -28,6 +31,7 @@ public class CopyContext {
 		this.migrationContext = migrationContext;
 		this.copyItems = copyItems;
 		this.performanceProfiler = performanceProfiler;
+		this.propertyOverrideMap = new HashMap<>();
 	}
 
 	public IdCopyContext toIdCopyContext() {
@@ -53,6 +57,10 @@ public class CopyContext {
 
 	public PerformanceProfiler getPerformanceProfiler() {
 		return performanceProfiler;
+	}
+
+	public Map<String, Serializable> getPropertyOverrideMap() {
+		return propertyOverrideMap;
 	}
 
 	public static class DataCopyItem {

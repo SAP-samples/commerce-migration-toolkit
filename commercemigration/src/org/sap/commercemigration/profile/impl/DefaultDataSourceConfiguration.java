@@ -25,9 +25,7 @@ public class DefaultDataSourceConfiguration implements DataSourceConfiguration {
 	private String typeSystemName;
 	private String typeSystemSuffix;
 	private int maxActive;
-	private int maxIdle;
 	private int minIdle;
-	private boolean removedAbandoned;
 
 	public DefaultDataSourceConfiguration(Configuration configuration, String profile) {
 		this.profile = profile;
@@ -90,18 +88,8 @@ public class DefaultDataSourceConfiguration implements DataSourceConfiguration {
 	}
 
 	@Override
-	public int getMaxIdle() {
-		return maxIdle;
-	}
-
-	@Override
 	public int getMinIdle() {
 		return minIdle;
-	}
-
-	@Override
-	public boolean isRemoveAbandoned() {
-		return removedAbandoned;
 	}
 
 	private void load(Configuration configuration, String profile) {
@@ -115,10 +103,7 @@ public class DefaultDataSourceConfiguration implements DataSourceConfiguration {
 		this.typeSystemName = getProfileProperty(profile, configuration, "db.typesystemname");
 		this.typeSystemSuffix = getProfileProperty(profile, configuration, "db.typesystemsuffix");
 		this.maxActive = parseInt(getProfileProperty(profile, configuration, "db.connection.pool.size.active.max"));
-		this.maxIdle = parseInt(getProfileProperty(profile, configuration, "db.connection.pool.size.idle.max"));
 		this.minIdle = parseInt(getProfileProperty(profile, configuration, "db.connection.pool.size.idle.min"));
-		this.removedAbandoned = Boolean
-				.parseBoolean(getProfileProperty(profile, configuration, "db.connection.removeabandoned"));
 	}
 
 	protected String getNormalProperty(Configuration configuration, String key) {

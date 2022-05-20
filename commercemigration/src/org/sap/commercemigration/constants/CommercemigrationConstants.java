@@ -43,10 +43,25 @@ public final class CommercemigrationConstants extends GeneratedCommercemigration
 	public static final String MIGRATION_DATA_PIPE_TIMEOUT = "migration.data.pipe.timeout";
 	public static final String MIGRATION_DATA_PIPE_CAPACITY = "migration.data.pipe.capacity";
 	public static final String MIGRATION_STALLED_TIMEOUT = "migration.stalled.timeout";
-	public static final String MIGRATION_DATA_REPORT_CONNECTIONSTRING = "migration.data.report.connectionstring";
+	public static final String MIGRATION_FILE_STORAGE_CONNECTIONSTRING = "migration.data.report.connectionstring";
 	public static final String MIGRATION_DATATYPE_CHECK = "migration.datatype.check";
 	public static final String MIGRATION_TABLESPREFIX = "MIGRATIONTOOLKIT_";
 	public static final String MIGRATION_SCHEDULER_RESUME_ENABLED = "migration.scheduler.resume.enabled";
+	public static final String MIGRATION_LOG_SQL = "migration.log.sql";
+	public static final String MIGRATION_LOG_SQL_PARAMS_SOURCE = "migration.log.sql.source.showparameters";
+	public static final String MIGRATION_SQL_STORE_FLUSH_THRESHOLD = "migration.log.sql.memory.flush.threshold.nbentries";
+	public static final String MIGRATION_FILE_STORAGE_CONTAINER_NAME = "migration.data.filestorage.container.name";
+	public static final String MIGRATION_INPUT_PROFILES = "migration.input.profiles";
+	public static final String MIGRATION_OUTPUT_PROFILES = "migration.output.profiles";
+
+	public static final String MIGRATION_DATA_READTASK_KEEPALIVE_SECONDS = "migration.data.readtask.keepaliveseconds";
+	public static final String MIGRATION_DATA_READTASK_QUEUE_CAPACITY = "migration.data.readtask.queuecapacity";
+	public static final String MIGRATION_DATA_READTASK_ALLOWTIMEOUT = "migration.data.readtask.allowtimeout";
+	public static final String MIGRATION_DATA_WRITETASK_KEEPALIVE_SECONDS = "migration.data.writetask.keepaliveseconds";
+	public static final String MIGRATION_DATA_WRITETASK_ALLOWTIMEOUT = "migration.data.writetask.allowtimeout";
+
+	public static final String MIGRATION_DATA_WORKERS_READER_KEEPALIVESECONDS = "migration.data.workers.reader.keepaliveseconds";
+	public static final String MIGRATION_DATA_WORKERS_WRITER_KEEPALIVESECONDS = "migration.data.workers.writer.keepaliveseconds";
 
 	public static final String MDC_MIGRATIONID = "migrationID";
 	public static final String MDC_PIPELINE = "pipeline";

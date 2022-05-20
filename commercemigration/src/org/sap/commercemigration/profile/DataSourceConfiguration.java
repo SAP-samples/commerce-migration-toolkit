@@ -30,9 +30,5 @@ public interface DataSourceConfiguration {
 
 	int getMaxActive();
 
-	int getMaxIdle();
-
 	int getMinIdle();
-
-	boolean isRemoveAbandoned();
 }

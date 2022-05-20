@@ -8,14 +8,15 @@ import de.hybris.bootstrap.ddl.DataBaseProvider;
 import org.sap.commercemigration.MarkersQueryDefinition;
 import org.sap.commercemigration.OffsetQueryDefinition;
 import org.sap.commercemigration.SeekQueryDefinition;
+import org.sap.commercemigration.context.MigrationContext;
 import org.sap.commercemigration.profile.DataSourceConfiguration;
 import org.sap.commercemigration.service.DatabaseMigrationDataTypeMapperService;
 
 public class HsqlRepository extends AbstractDataRepository {
 
-	public HsqlRepository(DataSourceConfiguration dataSourceConfiguration,
+	public HsqlRepository(MigrationContext migrationContext, DataSourceConfiguration dataSourceConfiguration,
 			DatabaseMigrationDataTypeMapperService databaseMigrationDataTypeMapperService) {
-		super(dataSourceConfiguration, databaseMigrationDataTypeMapperService);
+		super(migrationContext, dataSourceConfiguration, databaseMigrationDataTypeMapperService);
 	}
 
 	@Override

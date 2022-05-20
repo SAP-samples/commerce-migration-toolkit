@@ -13,6 +13,7 @@ import org.apache.ddlutils.Platform;
 import org.sap.commercemigration.MarkersQueryDefinition;
 import org.sap.commercemigration.OffsetQueryDefinition;
 import org.sap.commercemigration.SeekQueryDefinition;
+import org.sap.commercemigration.context.MigrationContext;
 import org.sap.commercemigration.dataset.DataSet;
 import org.sap.commercemigration.profile.DataSourceConfiguration;
 import org.sap.commercemigration.service.DatabaseMigrationDataTypeMapperService;
@@ -22,9 +23,9 @@ import java.sql.ResultSet;
 import java.util.Collections;
 
 public class OracleDataRepository extends AbstractDataRepository {
-	public OracleDataRepository(DataSourceConfiguration dataSourceConfiguration,
+	public OracleDataRepository(MigrationContext migrationContext, DataSourceConfiguration dataSourceConfiguration,
 			DatabaseMigrationDataTypeMapperService databaseMigrationDataTypeMapperService) {
-		super(dataSourceConfiguration, databaseMigrationDataTypeMapperService);
+		super(migrationContext, dataSourceConfiguration, databaseMigrationDataTypeMapperService);
 		ensureJdbcCompliance();
 	}
 
