@@ -1,16 +1,23 @@
+/*
+ * Copyright: 2021 SAP SE or an SAP affiliate company and commerce-migration-toolkit contributors.
+ * License: Apache-2.0
+*/
 package org.sap.commercemigration.repository;
 
-
 import de.hybris.bootstrap.ddl.DataBaseProvider;
+import java.sql.Connection;
 import org.apache.ddlutils.Platform;
 import org.apache.ddlutils.model.Database;
+import org.sap.commercemigration.MarkersQueryDefinition;
+import org.sap.commercemigration.OffsetQueryDefinition;
+import org.sap.commercemigration.SeekQueryDefinition;
+import org.sap.commercemigration.TypeSystemTable;
 import org.sap.commercemigration.dataset.DataSet;
+import org.sap.commercemigration.logging.JDBCQueriesStore;
 import org.sap.commercemigration.profile.DataSourceConfiguration;
-import org.sap.commercemigration.repository.model.TypeSystemTable;
 import org.springframework.core.io.Resource;
 
 import javax.sql.DataSource;
-import java.sql.Connection;
 import java.sql.SQLException;
 import java.time.Instant;
 import java.util.Set;
@@ -19,65 +26,77 @@ import java.util.Set;
  *
  */
 public interface DataRepository {
-    Database asDatabase();
+	Database asDatabase();
 
-    Database asDatabase(boolean reload);
+	Database asDatabase(boolean reload);
 
-    Set<String> getAllTableNames() throws Exception;
+	Set<String> getAllTableNames() throws Exception;
 
-    Set<TypeSystemTable> getAllTypeSystemTables() throws Exception;
+	Set<TypeSystemTable> getAllTypeSystemTables() throws Exception;
 
-    boolean isAuditTable(String table) throws Exception;
+	boolean isAuditTable(String table) throws Exception;
 
-    Set<String> getAllColumnNames(String table) throws Exception;
+	Set<String> getAllColumnNames(String table) throws Exception;
 
-    DataSet getBatchWithoutIdentifier(String table, Set<String> allColumns, long batchSize, long offset) throws Exception;
+	DataSet getBatchWithoutIdentifier(OffsetQueryDefinition queryDefinition) throws Exception;
 
-    DataSet getBatchWithoutIdentifier(String table, Set<String> allColumns, long batchSize, long offset, Instant time) throws Exception;
+	DataSet getBatchWithoutIdentifier(OffsetQueryDefinition queryDefinition, Instant time) throws Exception;
 
-    DataSet getBatchOrderedByColumn(String table, String column, Object start, long batchSize) throws Exception;
+	DataSet getBatchOrderedByColumn(SeekQueryDefinition queryDefinition) throws Exception;
 
-    DataSet getBatchOrderedByColumn(String table, String column, Object start, long batchSize, Instant time) throws Exception;
+	DataSet getBatchOrderedByColumn(SeekQueryDefinition queryDefinition, Instant time) throws Exception;
 
-    DataSet getBatchMarkersOrderedByColumn(String table, String column, long batchSize) throws Exception;
+	DataSet getBatchMarkersOrderedByColumn(MarkersQueryDefinition queryDefinition) throws Exception;
 
-    long getRowCount(String table) throws Exception;
+	long getRowCount(String table) throws Exception;
 
-    long getRowCountModifiedAfter(String table, Instant time) throws SQLException;
+	long getRowCountModifiedAfter(String table, Instant time) throws SQLException;
 
-    DataSet getAll(String table) throws Exception;
+	DataSet getAll(String table) throws Exception;
 
-    DataSet getAllModifiedAfter(String table, Instant time) throws Exception;
+	DataSet getAllModifiedAfter(String table, Instant time) throws Exception;
 
-    DataSourceConfiguration getDataSourceConfiguration();
+	DataSourceConfiguration getDataSourceConfiguration();
 
-    int executeUpdateAndCommit(String updateStatement) throws Exception;
+	int executeUpdateAndCommit(String updateStatement) throws Exception;
 
-    void runSqlScript(final Resource resource);
+	void runSqlScript(final Resource resource);
 
-    float getDatabaseUtilization() throws SQLException;
+	float getDatabaseUtilization() throws SQLException;
 
-    int truncateTable(String table) throws Exception;
+	int truncateTable(String table) throws Exception;
 
-    void disableIndexesOfTable(String table) throws Exception;
+	void disableIndexesOfTable(String table) throws Exception;
 
-    void enableIndexesOfTable(String table) throws SQLException;
+	void enableIndexesOfTable(String table) throws SQLException;
 
-    void dropIndexesOfTable(String table) throws SQLException;
+	void dropIndexesOfTable(String table) throws SQLException;
 
-    Platform asPlatform();
+	Platform asPlatform();
 
-    Platform asPlatform(boolean reload);
+	Platform asPlatform(boolean reload);
 
-    DataBaseProvider getDatabaseProvider();
+	DataBaseProvider getDatabaseProvider();
 
-    Connection getConnection() throws Exception;
+	Connection getConnection() throws Exception;
 
-    DataSource getDataSource();
+	DataSource getDataSource();
 
-    DataSet getBatchMarkersOrderedByColumn(String table, String column, long batchSize, Instant time) throws Exception;
+	DataSet getBatchMarkersOrderedByColumn(MarkersQueryDefinition queryDefinition, Instant time) throws Exception;
 
-    DataSet getUniqueColumns(String table) throws Exception;
+	DataSet getUniqueColumns(String table) throws Exception;
 
-    boolean validateConnection() throws Exception;
+	boolean validateConnection() throws Exception;
+
+	/**
+	 * Get the store of JDBC queries associated with the datasouce
+	 *
+	 * @return store of JDBC queries associated with the datasouce
+	 */
+	JDBCQueriesStore getJdbcQueriesStore();
+
+	/**
+	 * Clear the store of JDBC queries from all the entries it currently contains
+	 */
+	void clearJdbcQueriesStore();
 }

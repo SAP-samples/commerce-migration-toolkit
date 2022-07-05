@@ -1,3 +1,7 @@
+/*
+ * Copyright: 2021 SAP SE or an SAP affiliate company and commerce-migration-toolkit contributors.
+ * License: Apache-2.0
+*/
 package org.sap.commercemigration.events;
 
 /**
@@ -5,13 +9,13 @@ package org.sap.commercemigration.events;
  */
 public class CopyCompleteEvent extends CopyEvent {
 
-    private Boolean copyResult = false;
+	private Boolean copyResult = false;
 
-    public CopyCompleteEvent(final Integer sourceNodeId, final String migrationId) {
-        super(sourceNodeId, migrationId);
-    }
+	public CopyCompleteEvent(final Integer sourceNodeId, final String migrationId) {
+		super(sourceNodeId, migrationId);
+	}
 
-    public Boolean getCopyResult() {
-        return copyResult;
-    }
+	public Boolean getCopyResult() {
+		return copyResult;
+	}
 }

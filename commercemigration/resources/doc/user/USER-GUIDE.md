@@ -48,6 +48,8 @@ migration.ds.source.db.schema=localdev
 
 > **NOTE**: If you are not running in SAP Commerce Cloud (i.e locally) make sure the target database is MSSQL.
 
+> **NOTE for HANA DB users:**  The database schema name must be configured directly in the URL. You can call the **migration.ds.source.db.schema** property from the URL with following: `&currentSchema=${migration.ds.source.db.schema}`
+
 ## Build and start the platform
 
 Build and start the on-premise SAP Commerce platform.
@@ -170,6 +172,16 @@ If you want to remove the set of pre-existing tables, you can:
 ## Test the migrated data
 
 Execute thorough testing on the migrated environment to ensure data quality. The data is copied in a one-to-one method, from the source database. So there might be some adjustments needed after the copy process. Some examples of adjustments can be, data sorted in the database that refers to particular parts of the infrastructure that might have changed in SAP Commerce Cloud (e.g. Solr references, Data Hub references, etc...). Also the passwords are migrated in a one-to-one fashion, if in your source system you have changed the default encryption key. Please reference the section "Key Management and Key Rotation" of [this guide](https://help.sap.com/viewer/d0224eca81e249cb821f2cdf45a82ace/2005/en-US/8b2c75c886691014bc12b8b532a96f58.html) to align it in SAP Commerce Cloud.
+
+## Finish the migration process
+
+After the migration is finished, the Commerce Migration Toolkit should be removed. In order to achieve this you should perform reverse steps to [installing the CMT](#install-the-extensions). It means removing following extensions from your localextensions.xml:
+```
+<extension name="commercemigration"/>
+<extension name="commercemigrationhac"/>
+```
+
+> **NOTE**: Bear in mind that the **commercemigration** extension disables the task engine. If you want to keep the Commerce Migration Toolkit installed (e.g. because more test migrations are planned on this environment) remember about enabling task engine by setting `task.engine.loadonstartup=true` property in the CCv2 Portal until the next migration try is performed.
 
 ## How to choose the best approach for my migration
 

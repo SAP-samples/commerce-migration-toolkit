@@ -1,34 +1,34 @@
+/*
+ * Copyright: 2021 SAP SE or an SAP affiliate company and commerce-migration-toolkit contributors.
+ * License: Apache-2.0
+*/
 package org.sap.commercemigration.profile;
 
 /**
  * Contains a DataSource Configuration
  */
 public interface DataSourceConfiguration {
-    String getProfile();
+	String getProfile();
 
-    String getDriver();
+	String getDriver();
 
-    String getConnectionString();
+	String getConnectionString();
 
-    String getUserName();
+	String getUserName();
 
-    String getPassword();
+	String getPassword();
 
-    String getSchema();
+	String getSchema();
 
-    String getTypeSystemName();
+	String getTypeSystemName();
 
-    String getTypeSystemSuffix();
+	String getTypeSystemSuffix();
 
-    String getCatalog();
+	String getCatalog();
 
-    String getTablePrefix();
+	String getTablePrefix();
 
-    int getMaxActive();
+	int getMaxActive();
 
-    int getMaxIdle();
-
-    int getMinIdle();
-
-    boolean isRemoveAbandoned();
+	int getMinIdle();
 }

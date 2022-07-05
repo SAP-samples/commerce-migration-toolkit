@@ -1,3 +1,7 @@
+/*
+ * Copyright: 2021 SAP SE or an SAP affiliate company and commerce-migration-toolkit contributors.
+ * License: Apache-2.0
+*/
 package org.sap.commercemigrationhac.metric.populator.impl;
 
 import de.hybris.platform.commercemigrationhac.data.MetricData;
@@ -5,25 +9,25 @@ import org.sap.commercemigration.context.MigrationContext;
 import org.sap.commercemigrationhac.metric.populator.MetricPopulator;
 
 public class MemoryMetricPopulator implements MetricPopulator {
-    @Override
-    public MetricData populate(MigrationContext context) throws Exception {
-        MetricData data = new MetricData();
-        Runtime runtime = Runtime.getRuntime();
-        double freeMemory = runtime.freeMemory() / 1048576L;
-        double totalMemory = runtime.totalMemory() / 1048576L;
-        double usedMemory = totalMemory - freeMemory;
-        data.setMetricId("memory");
-        data.setName("Memory");
-        data.setDescription("The proportion of free and used memory");
-        data.setPrimaryValue(usedMemory);
-        data.setPrimaryValueLabel("Used");
-        data.setPrimaryValueUnit("MB");
-        data.setPrimaryValueThreshold(totalMemory * 0.9);
-        data.setSecondaryValue(freeMemory);
-        data.setSecondaryValueLabel("Free");
-        data.setSecondaryValueUnit("MB");
-        data.setSecondaryValueThreshold(0d);
-        populateColors(data);
-        return data;
-    }
+	@Override
+	public MetricData populate(MigrationContext context) throws Exception {
+		MetricData data = new MetricData();
+		Runtime runtime = Runtime.getRuntime();
+		double freeMemory = runtime.freeMemory() / 1048576d;
+		double totalMemory = runtime.totalMemory() / 1048576d;
+		double usedMemory = totalMemory - freeMemory;
+		data.setMetricId("memory");
+		data.setName("Memory");
+		data.setDescription("The proportion of free and used memory");
+		data.setPrimaryValue(usedMemory);
+		data.setPrimaryValueLabel("Used");
+		data.setPrimaryValueUnit("MB");
+		data.setPrimaryValueThreshold(totalMemory * 0.9);
+		data.setSecondaryValue(freeMemory);
+		data.setSecondaryValueLabel("Free");
+		data.setSecondaryValueUnit("MB");
+		data.setSecondaryValueThreshold(0d);
+		populateColors(data);
+		return data;
+	}
 }

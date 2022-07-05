@@ -1,3 +1,7 @@
+/*
+ * Copyright: 2021 SAP SE or an SAP affiliate company and commerce-migration-toolkit contributors.
+ * License: Apache-2.0
+*/
 package org.sap.commercemigration.context;
 
 import org.sap.commercemigration.repository.DataRepository;
@@ -6,79 +10,88 @@ import java.time.Instant;
 import java.util.Map;
 import java.util.Set;
 
-/**
- * The MigrationContext contains all information needed to perform a Source -> Target Migration
- */
 public interface MigrationContext {
-    DataRepository getDataSourceRepository();
+	DataRepository getDataSourceRepository();
 
-    DataRepository getDataTargetRepository();
+	DataRepository getDataTargetRepository();
 
-    boolean isMigrationTriggeredByUpdateProcess();
+	boolean isMigrationTriggeredByUpdateProcess();
 
-    boolean isSchemaMigrationEnabled();
+	boolean isSchemaMigrationEnabled();
 
-    boolean isAddMissingTablesToSchemaEnabled();
+	boolean isAddMissingTablesToSchemaEnabled();
 
-    boolean isRemoveMissingTablesToSchemaEnabled();
+	boolean isRemoveMissingTablesToSchemaEnabled();
 
-    boolean isAddMissingColumnsToSchemaEnabled();
+	boolean isAddMissingColumnsToSchemaEnabled();
 
-    boolean isRemoveMissingColumnsToSchemaEnabled();
+	boolean isRemoveMissingColumnsToSchemaEnabled();
 
-    boolean isSchemaMigrationAutoTriggerEnabled();
+	boolean isSchemaMigrationAutoTriggerEnabled();
 
-    int getReaderBatchSize();
+	int getReaderBatchSize();
 
-    boolean isTruncateEnabled();
+	boolean isTruncateEnabled();
 
-    boolean isAuditTableMigrationEnabled();
+	boolean isAuditTableMigrationEnabled();
 
-    Set<String> getTruncateExcludedTables();
+	Set<String> getTruncateExcludedTables();
 
-    int getMaxParallelReaderWorkers();
+	int getMaxParallelReaderWorkers();
 
-    int getMaxParallelWriterWorkers();
+	int getMaxParallelWriterWorkers();
 
-    int getMaxParallelTableCopy();
+	int getMaxParallelTableCopy();
 
-    int getMaxWorkerRetryAttempts();
+	int getMaxWorkerRetryAttempts();
 
-    boolean isFailOnErrorEnabled();
+	boolean isFailOnErrorEnabled();
 
-    Map<String, Set<String>> getExcludedColumns();
+	Map<String, Set<String>> getExcludedColumns();
 
-    Map<String, Set<String>> getNullifyColumns();
+	Map<String, Set<String>> getNullifyColumns();
 
-    Set<String> getCustomTables();
+	Set<String> getCustomTables();
 
-    Set<String> getExcludedTables();
+	Set<String> getExcludedTables();
 
-    Set<String> getIncludedTables();
+	Set<String> getIncludedTables();
 
-    boolean isDropAllIndexesEnabled();
+	boolean isDropAllIndexesEnabled();
 
-    boolean isDisableAllIndexesEnabled();
+	boolean isDisableAllIndexesEnabled();
 
-    Set<String> getDisableAllIndexesIncludedTables();
+	Set<String> getDisableAllIndexesIncludedTables();
 
-    boolean isClusterMode();
+	boolean isClusterMode();
 
-    boolean isIncrementalModeEnabled();
+	boolean isIncrementalModeEnabled();
 
-    Set<String> getIncrementalTables();
+	Set<String> getIncrementalTables();
 
-    Instant getIncrementalTimestamp();
+	Instant getIncrementalTimestamp();
 
-    boolean isBulkCopyEnabled();
+	int getDataPipeTimeout();
 
-    int getDataPipeTimeout();
+	int getDataPipeCapacity();
 
-    int getDataPipeCapacity();
+	int getStalledTimeout();
 
-    int getStalledTimeout();
+	String getFileStorageConnectionString();
 
-    String getMigrationReportConnectionString();
+	int getMaxTargetStagedMigrations();
 
-    int getMaxTargetStagedMigrations();
+	boolean isSchedulerResumeEnabled();
+
+	boolean isLogSql();
+
+	boolean isLogSqlParamsForSource();
+
+	int getSqlStoreMemoryFlushThreshold();
+
+	String getFileStorageContainerName();
+
+	Set<String> getInputProfiles();
+
+	Set<String> getOutputProfiles();
 }

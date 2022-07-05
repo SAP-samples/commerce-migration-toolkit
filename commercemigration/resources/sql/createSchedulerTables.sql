@@ -14,10 +14,24 @@ CREATE TABLE MIGRATIONTOOLKIT_TABLECOPYTASKS (
     failure char(1) NOT NULL DEFAULT '0',
     error NVARCHAR(MAX) NULL,
     published char(1) NOT NULL DEFAULT '0',
+    truncated char(1) NOT NULL DEFAULT '0',
     lastupdate DATETIME2 NOT NULL DEFAULT '0001-01-01 00:00:00',
     avgwriterrowthroughput numeric(10,2) NULL DEFAULT 0,
     avgreaderrowthroughput numeric(10,2) NULL DEFAULT 0,
+    copymethod NVARCHAR(255) NULL,
+    keycolumns NVARCHAR(255) NULL,
     PRIMARY KEY (migrationid, targetnodeid, pipelinename)
+);
+
+DROP TABLE IF EXISTS MIGRATIONTOOLKIT_TABLECOPYBATCHES;
+
+CREATE TABLE MIGRATIONTOOLKIT_TABLECOPYBATCHES (
+    migrationId NVARCHAR(255) NOT NULL,
+    batchId int NOT NULL DEFAULT 0,
+    pipelinename NVARCHAR(255) NOT NULL,
+    lowerBoundary NVARCHAR(255) NOT NULL,
+    upperBoundary NVARCHAR(255) NULL,
+    PRIMARY KEY (migrationid, batchId, pipelinename)
 );
 
 DROP TABLE IF EXISTS MIGRATIONTOOLKIT_TABLECOPYSTATUS;

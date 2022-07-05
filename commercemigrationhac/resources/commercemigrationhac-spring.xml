@@ -27,7 +27,9 @@
                 <ref bean="hikariSourceConnectionPopulator"/>
                 <ref bean="hikariTargetConnectionPopulator"/>
                 <ref bean="ioPopulator"/>
-                <ref bean="tableTaskExecutorPopulator"/>
+                <ref bean="tableTasksPopulator"/>
+                <ref bean="readWorkerPopulator"/>
+                <ref bean="writeWorkerPopulator"/>
             </list>
         </constructor-arg>
     </bean>
@@ -42,11 +44,19 @@
     <bean id="ioPopulator" class="org.sap.commercemigrationhac.metric.populator.impl.IOMetricPopulator">
         <constructor-arg ref="performanceProfiler"/>
     </bean>
-    <bean id="tableTaskExecutorPopulator"
-          class="org.sap.commercemigrationhac.metric.populator.impl.TaskExecutorMetricPopulator">
-        <constructor-arg ref="dataWriteTaskExecutor"/>
+    <bean id="tableTasksPopulator"
+          class="org.sap.commercemigrationhac.metric.populator.impl.ThreadPoolMetricPopulator">
+        <constructor-arg ref="dataWriteTaskFactory"/>
         <constructor-arg value="table"/>
     </bean>
-
-
+    <bean id="readWorkerPopulator"
+          class="org.sap.commercemigrationhac.metric.populator.impl.ThreadPoolMetricPopulator">
+        <constructor-arg ref="dataReadWorkerPoolFactory"/>
+        <constructor-arg value="reader"/>
+    </bean>
+    <bean id="writeWorkerPopulator"
+          class="org.sap.commercemigrationhac.metric.populator.impl.ThreadPoolMetricPopulator">
+        <constructor-arg ref="dataWriteWorkerPoolFactory"/>
+        <constructor-arg value="writer"/>
+    </bean>
 </beans>

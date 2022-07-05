@@ -84,6 +84,10 @@ In case the Customer needs to reduce the duration of the overall migration (for 
 
 The following example shows how the ticket would be made. Make sure that the environment name is mentioned, because multiple environments of the same type can exist in the same subscription. One Ticket will be needed per each environment and upscale request. Please allow up to 3 days for the ticket to be executed.
 Please note that ALL the information in the ticket between curly brackets are mandatory to be specified, and SAP will communicate back to the Customer the confirmation and duration for the upscale. SAP will downscale the system to its original size at the end of the communicated window. Such window depends on the information communicated by the Customer in the ticket. 
+Please use the specified template below for the ticket creation, and attach the [filled in questionnaire](template_for_scheduled_operational_activity.docx) you find in this same folder to the created ticket: in the questionnaire, please specify:
+1. All your customer data
+2. Reason for the request: Commerce Migration from on-premise, temporary upscale needed for a more performant data migration
+3. Start and End event times: planned duration for your data migration. 
 
 ```
 Dear SAP Support,
