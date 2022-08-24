@@ -35,6 +35,7 @@
 								</table>
 							</div>
 							<button id="buttonDsSourceValidate" data-url="<c:url value="/commercemigrationhac/migrationDataSource/source/validate"/>">Validate Connection</button>
+							<div id="connectionException" class="failed"></div>
 						</div>
 						<div id="tabs-2">
 							<div id="tableDsTargetWrapper">
@@ -51,6 +52,7 @@
 								</table>
 							</div>
 							<button id="buttonDsTargetValidate" data-url="<c:url value="/commercemigrationhac/migrationDataSource/target/validate"/>">Validate Connection</button>
+							<div id="connectionExceptionTarget" class="failed"></div>
 						</div>
 					</div>			
 				</div>

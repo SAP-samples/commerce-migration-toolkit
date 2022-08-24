@@ -7,8 +7,6 @@ package org.sap.commercemigration.profile.impl;
 import org.sap.commercemigration.profile.DataSourceConfiguration;
 
 public class InvalidDataSourceConfigurationException extends RuntimeException {
-	private DataSourceConfiguration dataSourceConfiguration;
-
 	public InvalidDataSourceConfigurationException(String message, DataSourceConfiguration dataSourceConfiguration) {
 		super(message + ": " + String.valueOf(dataSourceConfiguration));
 	}

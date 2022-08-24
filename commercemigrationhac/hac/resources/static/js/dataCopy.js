@@ -138,15 +138,27 @@
                     'X-CSRF-TOKEN': token,
                 },
                 success: function (data) {
+                    if(data.customException!=null)
+                    {
+                     hac.global.error(data.customException);
+
+                     stopButton.disabled = true;
+                     startButton.innerHTML = startButtonContentBefore;
+                     startButton.disabled = false;
+                    }
+                    else
+                    {
                     currentMigrationID = data.migrationID;
                     empty(logContainer);
                     updateStatus(data);
                     doPoll();
                     pollInterval = setInterval(doPoll, 5000);
-                },
-                error: function(xht, textStatus, ex) {
-                    hac.global.error("Data migration process failed, please check the logs");
+                    }
 
+                },
+                error: function(xht, textStatus,ex) {
+
+                    hac.global.error("Data migration process failed, please check the logs ");
                     stopButton.disabled = true;
                     startButton.innerHTML = startButtonContentBefore;
                     startButton.disabled = false;

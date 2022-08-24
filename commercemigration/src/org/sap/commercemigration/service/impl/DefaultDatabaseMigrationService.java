@@ -4,6 +4,8 @@
 */
 package org.sap.commercemigration.service.impl;
 
+import de.hybris.platform.task.TaskEngine;
+import de.hybris.platform.task.TaskService;
 import org.sap.commercemigration.MigrationReport;
 import org.sap.commercemigration.MigrationStatus;
 import org.sap.commercemigration.context.CopyContext;
@@ -18,6 +20,9 @@ import org.sap.commercemigration.service.DatabaseMigrationService;
 import org.sap.commercemigration.service.DatabaseSchemaDifferenceService;
 import org.slf4j.MDC;
 
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.time.OffsetDateTime;
 import java.util.Set;
 import java.util.UUID;
@@ -32,12 +37,34 @@ public class DefaultDatabaseMigrationService implements DatabaseMigrationService
 	private DatabaseMigrationReportService databaseMigrationReportService;
 	private DatabaseSchemaDifferenceService schemaDifferenceService;
 	private MigrationContextValidator migrationContextValidator;
+	private TaskService taskService;
 
 	@Override
 	public String startMigration(final MigrationContext context, LaunchOptions launchOptions) throws Exception {
 		migrationContextValidator.validateContext(context);
 
-		// TODO: running migration check
+		MigrationStatus migrationStatus = new MigrationStatus();
+		String query = "SELECT * FROM MIGRATIONTOOLKIT_TABLECOPYSTATUS WHERE status = 'RUNNING'";
+		try (Connection conn = context.getDataTargetRepository().getConnection();
+				PreparedStatement stmt = conn.prepareStatement(query)) {
+			try (ResultSet rs = stmt.executeQuery()) {
+				rs.next();
+				migrationStatus = new DefaultDatabaseCopyTaskRepository().convertToStatus(rs);
+			}
+		} catch (Exception e) {
+			e.getMessage();
+		}
+		if (migrationStatus.getStatus() != null && migrationStatus.getStatus().name().equals("RUNNING")) {
+			return migrationStatus.getMigrationID();
+		}
+
+		TaskEngine engine = taskService.getEngine();
+		boolean running = engine.isRunning();
+
+		if (running) {
+
+			throw new Exception("Task engine is activated - migration is blocked");
+		}
 		performanceProfiler.reset();
 		if (context.isLogSql()) {
 			context.getDataSourceRepository().clearJdbcQueriesStore();
@@ -139,5 +166,9 @@ public class DefaultDatabaseMigrationService implements DatabaseMigrationService
 
 	public void setMigrationContextValidator(MigrationContextValidator migrationContextValidator) {
 		this.migrationContextValidator = migrationContextValidator;
+	}
+
+	public void setTaskService(TaskService taskService) {
+		this.taskService = taskService;
 	}
 }

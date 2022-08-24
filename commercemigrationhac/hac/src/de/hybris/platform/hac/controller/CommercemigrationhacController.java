@@ -319,6 +319,7 @@ public class CommercemigrationhacController {
 			@CookieValue(value = COOKIE_MIGRATION_ID, required = false) String migrationId,
 			HttpServletResponse response) throws Exception {
 		String currentMigrationId = migrationId;
+		MigrationStatus migrationStatus = new MigrationStatus();
 		LaunchOptions launchOptions = new LaunchOptions();
 		launchOptions.getPropertyOverrideMap().putAll(copyConfig);
 		Serializable isResume = copyConfig.getOrDefault(CommercemigrationConstants.MIGRATION_SCHEDULER_RESUME_ENABLED,
@@ -328,10 +329,19 @@ public class CommercemigrationhacController {
 			databaseMigrationService.resumeUnfinishedMigration(migrationContext, launchOptions, migrationId);
 		} else {
 			logAction("Start data migration executed");
-			currentMigrationId = databaseMigrationService.startMigration(migrationContext, launchOptions);
-			response.addCookie(new Cookie(COOKIE_MIGRATION_ID, currentMigrationId));
+
+			try {
+				currentMigrationId = databaseMigrationService.startMigration(migrationContext, launchOptions);
+				response.addCookie(new Cookie(COOKIE_MIGRATION_ID, currentMigrationId));
+				migrationStatus = databaseMigrationService.getMigrationState(migrationContext, currentMigrationId);
+			} catch (Exception e) {
+				migrationStatus.setCustomException(e.getMessage());
+				e.getMessage();
+			}
 		}
-		return databaseMigrationService.getMigrationState(migrationContext, currentMigrationId);
+		copyConfig.replace(CommercemigrationConstants.MIGRATION_SCHEDULER_RESUME_ENABLED, false);
+
+		return migrationStatus;
 	}
 
 	@RequestMapping(value = "/abortCopy", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)

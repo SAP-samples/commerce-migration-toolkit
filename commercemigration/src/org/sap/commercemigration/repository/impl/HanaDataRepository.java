@@ -12,8 +12,15 @@ import org.sap.commercemigration.SeekQueryDefinition;
 import org.sap.commercemigration.context.MigrationContext;
 import org.sap.commercemigration.profile.DataSourceConfiguration;
 import org.sap.commercemigration.service.DatabaseMigrationDataTypeMapperService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import javax.xml.bind.ValidationException;
+import java.util.Map;
 
 public class HanaDataRepository extends AbstractDataRepository {
+
+	private static final Logger LOG = LoggerFactory.getLogger(HanaDataRepository.class);
 
 	public HanaDataRepository(MigrationContext migrationContext, DataSourceConfiguration dataSourceConfiguration,
 			DatabaseMigrationDataTypeMapperService databaseMigrationDataTypeMapperService) {
@@ -78,5 +85,22 @@ public class HanaDataRepository extends AbstractDataRepository {
 	@Override
 	public DataBaseProvider getDatabaseProvider() {
 		return DataBaseProvider.HANA;
+	}
+
+	@Override
+	public boolean validateConnection() throws Exception {
+		final Map<String, String> locationMap = getLocationMap();
+
+		if (!locationMap.containsKey("currentSchema")) {
+			LOG.info("Parameter currentSchema is missing");
+			throw new ValidationException("Parameter currentSchema is missing");
+		} else if (!locationMap.containsKey("reconnect")) {
+			LOG.info("Parameter reconnect is missing");
+			throw new ValidationException("Parameter reconnect is missing");
+		} else if (!locationMap.containsKey("statementCacheSize")) {
+			LOG.info("Parameter statementCacheSize is missing");
+			throw new ValidationException("Parameter statementCacheSize is missing");
+		}
+		return super.validateConnection();
 	}
 }
