@@ -26,6 +26,8 @@ import java.util.Set;
  *
  */
 public interface DataRepository {
+
+	String getDatabaseTimezone();
 	Database asDatabase();
 
 	Database asDatabase(boolean reload);

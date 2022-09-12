@@ -23,8 +23,14 @@
         <h2>Data Migration</h2>
         <c:if test="${isIncremental}">
             <hac:note additionalCssClass="marginBottom">
-                Incremental mode is enabled. Only rows changed after ${incrementalTimestamp} for specified tables will be copied.
+                Incremental mode is enabled. Only rows changed after ${incrementalTimestamp} for specified tables will be copied.<BR>
             </hac:note>
+        </c:if>
+        <c:if test="${!Timezone}">
+            <hac:note additionalCssClass="marginBottom">
+                The timezone on source and target database are different. It could cause problem. Please take it into account and check components using timezone after migration.<BR>
+            </hac:note>
+            <input type="checkbox" id="timezoneCheckbox" name="timezoneCheckbox"  onchange="document.getElementById('buttonCopyData').disabled=!this.checked"> I am aware of timezone differences, proceed migration
         </c:if>
         <div class="clearfix">
             <button id="buttonCopyData" class="control-button" data-url="<c:url value="/commercemigrationhac/copyData"/>">Start</button>

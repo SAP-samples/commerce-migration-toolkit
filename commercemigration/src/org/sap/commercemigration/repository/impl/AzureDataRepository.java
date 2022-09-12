@@ -176,4 +176,9 @@ public class AzureDataRepository extends AbstractDataRepository {
 
 		return super.validateConnection();
 	}
+
+	@Override
+	public String getDatabaseTimezone() {
+		return "UTC";
+	}
 }

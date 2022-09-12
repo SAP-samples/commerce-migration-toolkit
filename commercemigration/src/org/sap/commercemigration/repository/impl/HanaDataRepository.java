@@ -15,6 +15,9 @@ import org.sap.commercemigration.service.DatabaseMigrationDataTypeMapperService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import javax.xml.bind.ValidationException;
 import java.util.Map;
 
@@ -102,5 +105,19 @@ public class HanaDataRepository extends AbstractDataRepository {
 			throw new ValidationException("Parameter statementCacheSize is missing");
 		}
 		return super.validateConnection();
+	}
+
+	@Override
+	public String getDatabaseTimezone() {
+		String query = "select * from M_HOST_INFORMATION where upper(KEY) like '%TIMEZONE_NAME%'";
+		try (Connection conn = super.getConnection(); PreparedStatement stmt = conn.prepareStatement(query)) {
+			try (ResultSet rs = stmt.executeQuery()) {
+				rs.next();
+				return rs.getString("VALUE");
+			}
+		} catch (Exception e) {
+			e.getMessage();
+		}
+		return null;
 	}
 }

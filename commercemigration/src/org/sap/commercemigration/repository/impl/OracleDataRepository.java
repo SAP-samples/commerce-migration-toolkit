@@ -19,6 +19,8 @@ import org.sap.commercemigration.profile.DataSourceConfiguration;
 import org.sap.commercemigration.service.DatabaseMigrationDataTypeMapperService;
 
 import javax.sql.DataSource;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.util.Collections;
 
@@ -109,4 +111,22 @@ public class OracleDataRepository extends AbstractDataRepository {
 	public DataBaseProvider getDatabaseProvider() {
 		return DataBaseProvider.ORACLE;
 	}
+
+	@Override
+	public String getDatabaseTimezone() {
+		String query = "SELECT DBTIMEZONE FROM DUAL ";
+		try (Connection conn = super.getConnection(); PreparedStatement stmt = conn.prepareStatement(query)) {
+			try (ResultSet rs = stmt.executeQuery()) {
+				rs.next();
+				if (rs.getString("DBTIMEZONE").equals("+00:00"))
+					return "UTC";
+				else
+					return "Different timezone";
+			}
+		} catch (Exception e) {
+			e.getMessage();
+		}
+		return null;
+	}
+
 }

@@ -130,6 +130,21 @@ public class DefaultDatabaseMigrationService implements DatabaseMigrationService
 	}
 
 	@Override
+	public String getMigrationID(MigrationContext context) {
+		String query = "SELECT * FROM MIGRATIONTOOLKIT_TABLECOPYSTATUS";
+		try (Connection conn = context.getDataTargetRepository().getConnection();
+				PreparedStatement stmt = conn.prepareStatement(query)) {
+			try (ResultSet rs = stmt.executeQuery()) {
+				rs.next();
+				return rs.getString("migrationId");
+			}
+		} catch (Exception e) {
+			e.getMessage();
+		}
+		return null;
+	}
+
+	@Override
 	public MigrationStatus waitForFinish(MigrationContext context, String migrationID) throws Exception {
 		MigrationStatus status;
 		do {

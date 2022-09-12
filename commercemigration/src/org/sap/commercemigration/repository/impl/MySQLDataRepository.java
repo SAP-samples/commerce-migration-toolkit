@@ -6,6 +6,9 @@ package org.sap.commercemigration.repository.impl;
 
 import de.hybris.bootstrap.ddl.DataBaseProvider;
 
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.util.Map;
 
 import org.sap.commercemigration.MarkersQueryDefinition;
@@ -96,6 +99,19 @@ public class MySQLDataRepository extends AbstractDataRepository {
 		}
 
 		return super.validateConnection();
+	}
+	@Override
+	public String getDatabaseTimezone() {
+		String query = "SELECT @@system_time_zone as timezone";
+		try (Connection conn = super.getConnection(); PreparedStatement stmt = conn.prepareStatement(query)) {
+			try (ResultSet rs = stmt.executeQuery()) {
+				rs.next();
+				return rs.getString("timezone");
+			}
+		} catch (Exception e) {
+			e.getMessage();
+		}
+		return null;
 	}
 
 }

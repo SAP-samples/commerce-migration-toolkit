@@ -53,4 +53,9 @@ public class HsqlRepository extends AbstractDataRepository {
 	public DataBaseProvider getDatabaseProvider() {
 		return DataBaseProvider.HSQL;
 	}
+
+	@Override
+	public String getDatabaseTimezone() {
+		return null;
+	}
 }

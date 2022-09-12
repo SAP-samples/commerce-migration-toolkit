@@ -47,7 +47,6 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.CookieValue;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -57,7 +56,6 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 
-import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletResponse;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
@@ -68,12 +66,7 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -88,7 +81,6 @@ public class CommercemigrationhacController {
 	private static final Logger LOG = LoggerFactory.getLogger(CommercemigrationhacController.class);
 	private static final SimpleDateFormat DATE_TIME_FORMATTER = new SimpleDateFormat("YYYY-MM-dd HH:mm",
 			Locale.ENGLISH);
-	private static final String COOKIE_MIGRATION_ID = "MIGRATIONID";
 	@Autowired
 	BlobDatabaseMigrationReportStorageService blobDatabaseMigrationReportStorageService;
 	@Autowired
@@ -127,6 +119,7 @@ public class CommercemigrationhacController {
 	@RequestMapping(value = {"/migrationData"}, method = {org.springframework.web.bind.annotation.RequestMethod.GET})
 	public String data(final Model model) {
 		logAction("Data migration tab clicked");
+		model.addAttribute("Timezone", CheckTimeZoneDifferences(migrationContext));
 		model.addAttribute("isIncremental", migrationContext.isIncrementalModeEnabled());
 		Instant timestamp = migrationContext.getIncrementalTimestamp();
 		model.addAttribute("incrementalTimestamp", timestamp == null ? DEFAULT_EMPTY_VAL : timestamp);
@@ -315,10 +308,10 @@ public class CommercemigrationhacController {
 
 	@RequestMapping(value = "/copyData", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
 	@ResponseBody
-	public MigrationStatus copyData(@RequestParam Map<String, Serializable> copyConfig,
-			@CookieValue(value = COOKIE_MIGRATION_ID, required = false) String migrationId,
-			HttpServletResponse response) throws Exception {
-		String currentMigrationId = migrationId;
+	public MigrationStatus copyData(@RequestParam Map<String, Serializable> copyConfig, HttpServletResponse response)
+			throws Exception {
+
+		String currentMigrationId = databaseMigrationService.getMigrationID(migrationContext);
 		MigrationStatus migrationStatus = new MigrationStatus();
 		LaunchOptions launchOptions = new LaunchOptions();
 		launchOptions.getPropertyOverrideMap().putAll(copyConfig);
@@ -326,13 +319,13 @@ public class CommercemigrationhacController {
 				false);
 		if (BooleanUtils.toBoolean(isResume.toString()) && StringUtils.isNotEmpty(currentMigrationId)) {
 			logAction("Resume data migration executed");
-			databaseMigrationService.resumeUnfinishedMigration(migrationContext, launchOptions, migrationId);
+			databaseMigrationService.resumeUnfinishedMigration(migrationContext, launchOptions,
+					databaseMigrationService.getMigrationID(migrationContext));
 		} else {
 			logAction("Start data migration executed");
 
 			try {
 				currentMigrationId = databaseMigrationService.startMigration(migrationContext, launchOptions);
-				response.addCookie(new Cookie(COOKIE_MIGRATION_ID, currentMigrationId));
 				migrationStatus = databaseMigrationService.getMigrationState(migrationContext, currentMigrationId);
 			} catch (Exception e) {
 				migrationStatus.setCustomException(e.getMessage());
@@ -354,11 +347,10 @@ public class CommercemigrationhacController {
 
 	@RequestMapping(value = "/resumeRunning", method = RequestMethod.GET)
 	@ResponseBody
-	public MigrationStatus resumeRunning(
-			@CookieValue(value = COOKIE_MIGRATION_ID, required = false) String currentMigrationId) throws Exception {
-		if (StringUtils.isNotEmpty(currentMigrationId)) {
+	public MigrationStatus resumeRunning() throws Exception {
+		if (StringUtils.isNotEmpty(databaseMigrationService.getMigrationID(migrationContext))) {
 			MigrationStatus migrationState = databaseMigrationService.getMigrationState(migrationContext,
-					currentMigrationId);
+					databaseMigrationService.getMigrationID(migrationContext));
 			prepareStateForJsonSerialization(migrationState);
 			return migrationState;
 		} else {
@@ -530,4 +522,14 @@ public class CommercemigrationhacController {
 		return configPanelItemDTO;
 	}
 
+	private boolean CheckTimeZoneDifferences(MigrationContext context) {
+		TimeZone source = TimeZone.getTimeZone(context.getDataSourceRepository().getDatabaseTimezone());
+		if (TimeZone.getTimeZone("UTC").getRawOffset() == source.getRawOffset()) {
+			LOG.info("The timezone on source and target are the same!!");
+			return true;
+		}
+		LOG.info("The timezone on source and target are different!!");
+		return false;
+
+	}
 }
