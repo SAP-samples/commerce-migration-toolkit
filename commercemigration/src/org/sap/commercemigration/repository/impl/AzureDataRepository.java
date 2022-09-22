@@ -158,20 +158,22 @@ public class AzureDataRepository extends AbstractDataRepository {
 
 	@Override
 	public boolean validateConnection() throws Exception {
-		final String connectionString = getDataSourceConfiguration().getConnectionString();
-		int endIndex = connectionString.indexOf(';');
-		String newConnectionString = connectionString.substring(endIndex + 1);
-		List<String> entries = getTokensWithCollection(newConnectionString, ";");
+		if (!"target".equals(getDataSourceConfiguration().getProfile())) {
+			final String connectionString = getDataSourceConfiguration().getConnectionString();
+			int endIndex = connectionString.indexOf(';');
+			String newConnectionString = connectionString.substring(endIndex + 1);
+			List<String> entries = getTokensWithCollection(newConnectionString, ";");
 
-		final Map<String, String> locationMap = entries.stream().map(s -> s.split("="))
-				.collect(Collectors.toMap(s -> s[0], s -> s[1]));
+			final Map<String, String> locationMap = entries.stream().map(s -> s.split("="))
+					.collect(Collectors.toMap(s -> s[0], s -> s[1]));
 
-		if (!locationMap.containsKey("databaseName")) {
-			LOG.info("Parameter databaseName is missing");
-			throw new ValidationException("Parameter databaseName is missing");
-		} else if (!locationMap.containsKey("loginTimeout")) {
-			LOG.info("Parameter loginTimeout is missing");
-			throw new ValidationException("Parameter loginTimeout is missing");
+			if (!locationMap.containsKey("databaseName")) {
+				LOG.info("Parameter databaseName is missing");
+				throw new ValidationException("Parameter databaseName is missing");
+			} else if (!locationMap.containsKey("loginTimeout")) {
+				LOG.info("Parameter loginTimeout is missing");
+				throw new ValidationException("Parameter loginTimeout is missing");
+			}
 		}
 
 		return super.validateConnection();
