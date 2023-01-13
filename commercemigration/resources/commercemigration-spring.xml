@@ -102,6 +102,7 @@
         <property name="databaseMigrationReportService" ref="databaseMigrationReportService"/>
         <property name="schemaDifferenceService" ref="schemaDifferenceService"/>
         <property name="migrationContextValidator" ref="migrationContextValidator"/>
+        <property name="taskService" ref="taskService"/>
     </bean>
 
     <alias name="customClusterDatabaseCopyScheduler" alias="databaseCopyScheduler"/>

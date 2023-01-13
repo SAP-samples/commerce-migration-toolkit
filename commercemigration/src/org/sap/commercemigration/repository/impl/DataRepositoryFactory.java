@@ -13,9 +13,7 @@ import org.sap.commercemigration.service.DatabaseMigrationDataTypeMapperService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.HashSet;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 
 public class DataRepositoryFactory {
 
@@ -47,7 +45,12 @@ public class DataRepositoryFactory {
 			// TODO implement a CompositeRepository to handle multiple inputs/outputs
 			return new NullRepository("multiple data source profiles as input/output is currently not supported", null);
 		} else {
-			return repositories.stream().findFirst().get();
+			Optional<DataRepository> repositoryOptional = repositories.stream().findFirst();
+			if (repositoryOptional.isPresent()) {
+				return repositoryOptional.get();
+			} else {
+				throw new NoSuchElementException("The element being requested does not exist.");
+			}
 		}
 	}
 

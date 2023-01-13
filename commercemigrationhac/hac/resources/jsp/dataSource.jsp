@@ -4,7 +4,7 @@
 <head>
 	<title>Migrate Data To SAP Commerce Cloud</title>
 	<link rel="stylesheet" href="<c:url value="/static/css/table.css"/>" type="text/css" media="screen, projection" />
-	<link rel="stylesheet" href="<c:url value="/static/css/monitoring/database.css"/>" type="text/css" media="screen, projection" />
+	<link rel="stylesheet" href="<c:url value="/static/css/database.css"/>" type="text/css" media="screen, projection" />
 	
 	<script type="text/javascript" src="<c:url value="/static/js/jquery.dataTables.min.js"/>"></script>
 	<script type="text/javascript" src="<c:url value="/static/js/history.js"/>"></script>
@@ -20,7 +20,6 @@
 							<li><a href="#tabs-1">Source Database</a></li>
 							<li><a href="#tabs-2">Target Database</a></li>
 						</ul>
-						
 						<div id="tabs-1">
 							<div id="tableDsSourceWrapper">
 								<table id="tableDsSource" data-url="<c:url value="/commercemigrationhac/migrationDataSource/source"/>">
@@ -36,6 +35,7 @@
 								</table>
 							</div>
 							<button id="buttonDsSourceValidate" data-url="<c:url value="/commercemigrationhac/migrationDataSource/source/validate"/>">Validate Connection</button>
+							<div id="connectionException" class="failed"></div>
 						</div>
 						<div id="tabs-2">
 							<div id="tableDsTargetWrapper">
@@ -52,6 +52,7 @@
 								</table>
 							</div>
 							<button id="buttonDsTargetValidate" data-url="<c:url value="/commercemigrationhac/migrationDataSource/target/validate"/>">Validate Connection</button>
+							<div id="connectionExceptionTarget" class="failed"></div>
 						</div>
 					</div>			
 				</div>

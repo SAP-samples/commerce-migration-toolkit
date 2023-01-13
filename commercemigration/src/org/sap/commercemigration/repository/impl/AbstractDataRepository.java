@@ -48,8 +48,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.StringTokenizer;
 import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 import static org.sap.commercemigration.constants.CommercemigrationConstants.MIGRATION_TABLESPREFIX;
 
@@ -619,8 +621,24 @@ public abstract class AbstractDataRepository implements DataRepository {
 		return jdbcQueriesStore;
 	}
 
+	protected Map<String, String> getLocationMap() {
+		final String connectionString = getDataSourceConfiguration().getConnectionString();
+		int endIndex = connectionString.indexOf('?');
+		String newConnectionString = connectionString.substring(endIndex + 1);
+		List<String> entries = getTokensWithCollection(newConnectionString, "&");
+
+		final Map<String, String> locationMap = entries.stream().map(s -> s.split("="))
+				.collect(Collectors.toMap(s -> s[0], s -> s[1]));
+		return locationMap;
+	}
+
 	@Override
 	public void clearJdbcQueriesStore() {
 		jdbcQueriesStore.clear();
+	}
+
+	public List<String> getTokensWithCollection(final String str, final String delimiter) {
+		return Collections.list(new StringTokenizer(str, delimiter)).stream().map(token -> (String) token)
+				.collect(Collectors.toList());
 	}
 }

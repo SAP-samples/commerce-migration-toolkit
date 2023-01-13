@@ -26,7 +26,7 @@ import org.sap.commercemigration.profile.DataSourceConfigurationFactory;
 import org.sap.commercemigration.repository.DataRepository;
 import org.sap.commercemigration.repository.impl.DataRepositoryFactory;
 
-public class DefaultMigrationContext implements MigrationContext {
+public final class DefaultMigrationContext implements MigrationContext {
 	private final DataRepository dataSourceRepository;
 	private final DataRepository dataTargetRepository;
 
@@ -38,9 +38,9 @@ public class DefaultMigrationContext implements MigrationContext {
 		this.configuration = configuration;
 		ensureDefaultLocale(configuration);
 		final Set<DataSourceConfiguration> inputDataSourceConfigurations = getInputProfiles().stream()
-				.map(p -> dataSourceConfigurationFactory.create(p)).collect(Collectors.toSet());
+				.map(dataSourceConfigurationFactory::create).collect(Collectors.toSet());
 		final Set<DataSourceConfiguration> outputDataSourceConfigurations = getOutputProfiles().stream()
-				.map(p -> dataSourceConfigurationFactory.create(p)).collect(Collectors.toSet());
+				.map(dataSourceConfigurationFactory::create).collect(Collectors.toSet());
 		this.dataSourceRepository = dataRepositoryFactory.create(this, inputDataSourceConfigurations);
 		this.dataTargetRepository = dataRepositoryFactory.create(this, outputDataSourceConfigurations);
 	}
@@ -264,15 +264,15 @@ public class DefaultMigrationContext implements MigrationContext {
 		return getNumericProperty(CommercemigrationConstants.MIGRATION_STALLED_TIMEOUT);
 	}
 
-	protected boolean getBooleanProperty(final String key) {
+	private boolean getBooleanProperty(final String key) {
 		return configuration.getBoolean(key);
 	}
 
-	protected int getNumericProperty(final String key) {
+	private int getNumericProperty(final String key) {
 		return configuration.getInt(key);
 	}
 
-	protected String getStringProperty(final String key) {
+	private String getStringProperty(final String key) {
 		return configuration.getString(key);
 	}
 

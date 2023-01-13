@@ -87,10 +87,22 @@
                 },
                 success: function (data) {
                     if(data) {
+                         if($('#timezoneCheckbox').val()){
+                                $('#buttonCopyData').prop('disabled', true);
+                             }
+                             else
                         startButtonContentBefore = startButton.innerHTML;
                         if(data.status === 'RUNNING') {
+                         if($('#timezoneCheckbox').val()){
+                                $('#buttonCopyData').prop('disabled', true);
+                             }
+                         else
                             startButton.innerHTML = startButtonContentBefore + ' ' + hac.global.getSpinnerImg();
                         }
+                         if($('#timezoneCheckbox').val()){
+                                $('#buttonCopyData').prop('disabled', true);
+                             }
+                         else
                         startButton.disabled = data.status === 'RUNNING';
                         reportButton.disabled = !(data.status === 'RUNNING');
                         if (dataSourceButton) {
@@ -108,10 +120,18 @@
                         doPoll();
                         pollInterval = setInterval(doPoll, 5000);
                     } else {
+                     if($('#timezoneCheckbox').val()){
+                            $('#buttonCopyData').prop('disabled', true);
+                         }
+                         else
                         startButton.disabled = false;
                     }
                 },
                 error: function (data) {
+                 if($('#timezoneCheckbox').val()){
+                        $('#buttonCopyData').prop('disabled', true);
+                     }
+                    else
                     startButton.disabled = false;
                 }
             });
@@ -138,16 +158,32 @@
                     'X-CSRF-TOKEN': token,
                 },
                 success: function (data) {
+                    if(data.customException!=null)
+                    {
+                     hac.global.error(data.customException);
+
+                     stopButton.disabled = true;
+                     startButton.innerHTML = startButtonContentBefore;
+                     startButton.disabled = false;
+                    }
+                    else
+                    {
                     currentMigrationID = data.migrationID;
                     empty(logContainer);
                     updateStatus(data);
                     doPoll();
                     pollInterval = setInterval(doPoll, 5000);
-                },
-                error: function(xht, textStatus, ex) {
-                    hac.global.error("Data migration process failed, please check the logs");
+                    }
 
+                },
+                error: function(xht, textStatus,ex) {
+
+                    hac.global.error("Data migration process failed, please check the logs ");
                     stopButton.disabled = true;
+                     if($('#timezoneCheckbox').val()){
+                            $('#buttonCopyData').prop('disabled', true);
+                         }
+                         else
                     startButton.innerHTML = startButtonContentBefore;
                     startButton.disabled = false;
                 }
@@ -156,6 +192,10 @@
 
         function stopCopy() {
             stopButton.disabled = true;
+             if($('#timezoneCheckbox').val()){
+                    $('#buttonCopyData').prop('disabled', true);
+                 }
+                 else
             startButton.innerHTML = startButtonContentBefore;
             startButton.disabled = false;
             $.ajax({
@@ -240,8 +280,14 @@
                     }
                     updateStatus(status);
                     if (status.completed) {
+                     if($('#timezoneCheckbox').val()){
+                            $('#buttonCopyData').prop('disabled', true);
+                         }
+                         else
+                         {
                         startButton.innerHTML = startButtonContentBefore
                         startButton.disabled = false;
+                        }
                         stopButton.disabled = true;
                         $(reportForm).children('input[name=migrationId]').val(currentMigrationID);
                         reportButton.disabled = false;

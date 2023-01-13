@@ -203,5 +203,10 @@ public class NullRepository implements DataRepository {
 	public void clearJdbcQueriesStore() {
 		throw new InvalidDataSourceConfigurationException(this.message, this.dataSourceConfiguration);
 	}
+	@Override
+	public String getDatabaseTimezone() {
+
+		return null;
+	}
 
 }

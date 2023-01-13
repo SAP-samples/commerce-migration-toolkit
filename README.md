@@ -15,6 +15,7 @@ The implementation of this tool is based on regular SAP Commerce extensions. Add
 * [Configuration Guide](commercemigration/resources/doc/configuration/CONFIGURATION-GUIDE.md) The extensions ship with a default configuration that may need to be adjusted depending on the desired behaviour. This guide explains how different features and behaviours can be configured.
 * [Developer Guide](commercemigration/resources/doc/developer/DEVELOPER-GUIDE.md) If you want to contribute please read this guide.
 * [Troubleshooting Guide](commercemigration/resources/doc/troubleshooting/TROUBLESHOOTING-GUIDE.md) A collection of common problems and how to tackle them.
+* [CMT Hints](commercemigration/resources/doc/user/CMT-Hints.md) A collection of good practices and performance problems with CMT.
 
 # System Landscape
 

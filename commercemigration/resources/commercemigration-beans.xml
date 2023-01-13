@@ -67,6 +67,7 @@
         <property name="failedTasks" type="int"/>
         <property name="status" type="org.sap.commercemigration.MigrationProgress"/>
         <property name="statusUpdates" type="java.util.List&lt;org.sap.commercemigration.service.DatabaseCopyTask&gt;"/>
+        <property name="customException" type="String"/>
     </bean>
 
     <bean class="org.sap.commercemigration.MigrationReport">

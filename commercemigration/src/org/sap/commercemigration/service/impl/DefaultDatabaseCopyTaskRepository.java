@@ -111,7 +111,7 @@ public class DefaultDatabaseCopyTaskRepository implements DatabaseCopyTaskReposi
 	 * @return the equivalent Migration Status
 	 * @throws Exception
 	 */
-	private MigrationStatus convertToStatus(ResultSet rs) throws Exception {
+	public MigrationStatus convertToStatus(ResultSet rs) throws Exception {
 		MigrationStatus status = new MigrationStatus();
 		status.setMigrationID(rs.getString("migrationId"));
 		status.setStart(getDateTime(rs, "startAt"));

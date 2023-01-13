@@ -195,8 +195,11 @@ public class LoggingPreparedStatementWrapper extends LoggingStatementWrapper imp
 		preparedStatement.setAsciiStream(parameterIndex, x, length);
 	}
 
+	/**
+	 * @deprecated since 1.2
+	 */
 	@Override
-	@Deprecated
+	@Deprecated(since = "1.2")
 	public void setUnicodeStream(int parameterIndex, InputStream x, int length) throws SQLException {
 		if (logSqlParams) {
 			parameters.put(parameterIndex, x);

@@ -20,11 +20,15 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.sql.DataSource;
+import javax.xml.bind.ValidationException;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.Types;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 public class AzureDataRepository extends AbstractDataRepository {
 
@@ -150,5 +154,33 @@ public class AzureDataRepository extends AbstractDataRepository {
 	@Override
 	public DataBaseProvider getDatabaseProvider() {
 		return DataBaseProvider.MSSQL;
+	}
+
+	@Override
+	public boolean validateConnection() throws Exception {
+		if (!"target".equals(getDataSourceConfiguration().getProfile())) {
+			final String connectionString = getDataSourceConfiguration().getConnectionString();
+			int endIndex = connectionString.indexOf(';');
+			String newConnectionString = connectionString.substring(endIndex + 1);
+			List<String> entries = getTokensWithCollection(newConnectionString, ";");
+
+			final Map<String, String> locationMap = entries.stream().map(s -> s.split("="))
+					.collect(Collectors.toMap(s -> s[0], s -> s[1]));
+
+			if (!locationMap.containsKey("databaseName")) {
+				LOG.info("Parameter databaseName is missing");
+				throw new ValidationException("Parameter databaseName is missing");
+			} else if (!locationMap.containsKey("loginTimeout")) {
+				LOG.info("Parameter loginTimeout is missing");
+				throw new ValidationException("Parameter loginTimeout is missing");
+			}
+		}
+
+		return super.validateConnection();
+	}
+
+	@Override
+	public String getDatabaseTimezone() {
+		return "UTC";
 	}
 }
