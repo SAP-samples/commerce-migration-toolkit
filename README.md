@@ -2,6 +2,14 @@
 
 [![REUSE status](https://api.reuse.software/badge/github.com/SAP-samples/commerce-migration-toolkit)](https://api.reuse.software/info/github.com/SAP-samples/commerce-migration-toolkit)
 
+> ## __Warning__
+> 
+> This content is obsolete. CMT has been replaced with SAP Commerce DB Sync tool as of 9th Aug 2023 and this repository should be considered as an archive only.
+>
+> Please refer to the new repository for more details: https://github.com/SAP/sap-commerce-db-sync
+>
+---
+
 The Commerce Migration Toolkit is a `self-service tool` that allows `SAP Customers / Partners` to migrate a `SAP Commerce on-premise installation to SAP Commerce Cloud (ccv2)`.
 
 The implementation of this tool is based on regular SAP Commerce extensions. Adding the extensions to your code base in the cloud subscription will provide you with the functionality to migrate the source database, and, paired with the self-service media process described on [this CXWorks article](https://www.sap.com/cxworks/article/508629017/migrate_to_sap_commerce_cloud_migrate_media_with_azcopy) allows to self-service the migration of an on-premise customer environment to their cloud subscription.
